@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tatsu</title>
+<link rel="icon" href="logo.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#fff; --fg:#111; --muted:#777; --card:#f6f6f7; --line:#e3e3e6; --accent:#c0392b; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#1c1c1e; --fg:#f2f2f2; --muted:#9a9a9f; --card:#2a2a2d; --line:#3a3a3e; --accent:#ff6b5b; }
+  }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif; }
+  header { position:sticky; top:0; background:var(--bg); padding:12px 16px; border-bottom:1px solid var(--line); display:flex; gap:12px; align-items:center; }
+  header img { width:40px; height:40px; border-radius:9px; flex:none; }
+  input { width:100%; font-size:20px; padding:10px 14px; border:1px solid var(--line); border-radius:10px; background:var(--card); color:var(--fg); outline:none; }
+  input:focus { border-color:var(--accent) }
+  main { padding:16px; display:grid; gap:12px; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); }
+  .hint { color:var(--muted); grid-column:1/-1; }
+  .card { background:var(--card); border-radius:12px; padding:14px; display:grid; grid-template-columns:auto 1fr; gap:14px; }
+  .k { font-size:64px; line-height:1; cursor:pointer; user-select:all; padding:4px; border-radius:8px; }
+  .k:hover { background:var(--line) }
+  .k.copied { color:var(--accent) }
+  .m { font-weight:600; margin-bottom:6px; }
+  .row { margin:2px 0; display:flex; flex-wrap:wrap; gap:4px 12px; align-items:baseline; }
+  .lbl { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; min-width:2.2em; }
+  ruby { font-size:22px; } rt { font-size:11px; color:var(--accent); }
+  .r small { color:var(--muted); margin-left:3px; }
+  .meta { color:var(--muted); font-size:12px; margin-top:6px; }
+  .meta span + span::before { content:" · " }
+</style>
+</head>
+<body>
+<header><img src="logo.svg" alt="Tatsu"><input id="q" placeholder="english, hiragana, romaji or kanji…" autofocus autocomplete="off" spellcheck="false"></header>
+<main id="out"><div class="hint">Type to search. Esc clears. Click a kanji to copy it.</div></main>
+<script src="data.js"></script>
+<script src="search.js"></script>
+<script>
+load(window.KANJI);
+const esc = s => s.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const GRADE = g => g <= 6 ? "grade " + g : g === 8 ? "jōyō (secondary)" : "jinmeiyō";
+
+// "た.べる" -> ruby た over kanji, べる after; "-び" keeps its position dash outside the ruby
+function reading(k, r) {
+  const [stem, oku = ""] = r.split(".");
+  const pre = stem.startsWith("-") ? "-" : "", suf = stem.endsWith("-") ? "-" : "";
+  const core = stem.replace(/^-|-$/g, "");
+  return `<span class="r">${pre}<ruby>${k}<rt>${esc(core)}</rt></ruby>${esc(oku)}${suf}<small>${romaji(r)}</small></span>`;
+}
+const row = (lbl, k, rs) => rs.length ? `<div class="row"><span class="lbl">${lbl}</span>${rs.map(r => reading(k, r)).join("")}</div>` : "";
+
+function card(e) {
+  const meta = [e.s + " strokes", e.g && GRADE(e.g), e.j && "JLPT " + e.j, e.f && "#" + e.f + " freq"].filter(Boolean);
+  return `<div class="card">
+    <div class="k" title="click to copy">${e.k}</div>
+    <div>
+      <div class="m">${esc(e.m.join(", "))}</div>
+      ${row("on", e.k, e.on)}${row("kun", e.k, e.kun)}
+      ${e.n.length ? `<div class="row"><span class="lbl">names</span><span style="color:var(--muted)">${esc(e.n.join("、"))}</span></div>` : ""}
+      <div class="meta">${meta.map(m => `<span>${m}</span>`).join("")}</div>
+    </div>
+  </div>`;
+}
+
+const q = document.getElementById("q"), out = document.getElementById("out");
+q.addEventListener("input", () => {
+  const hits = search(q.value);
+  out.innerHTML = hits.length ? hits.map(card).join("") : `<div class="hint">${q.value.trim() ? "No matches." : "Type to search. Esc clears. Click a kanji to copy it."}</div>`;
+});
+q.addEventListener("keydown", e => { if (e.key === "Escape") { q.value = ""; q.dispatchEvent(new Event("input")); } });
+out.addEventListener("click", e => {
+  const k = e.target.closest(".k"); if (!k) return;
+  navigator.clipboard?.writeText(k.textContent).catch(() => {});
+  k.classList.add("copied"); setTimeout(() => k.classList.remove("copied"), 400);
+});
+// Cmd+F / any typing refocuses the box
+document.addEventListener("keydown", e => { if ((e.metaKey && e.key === "f") || (!e.metaKey && e.key.length === 1)) q.focus(); });
+</script>
+</body>
+</html>
