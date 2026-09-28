@@ -12,6 +12,13 @@ struct DataTests {
         #expect(water.kun.contains("みず"))
         #expect(water.s == 4)
     }
+
+    // Swift compares Strings by canonical equivalence, so CJK compatibility ideographs
+    // (e.g. U+FA19 vs 神) would collide as list IDs
+    @Test func kanjiIDsAreUnique() throws {
+        let all = try Kanji.loadBundled()
+        #expect(Set(all.map(\.k)).count == all.count)
+    }
 }
 
 struct RomajiTests {

@@ -34,6 +34,14 @@ func metaLine(_ e: Kanji) -> String {
     return parts.joined(separator: " · ")
 }
 
+/// A key press worth forwarding to the search field: printable text, not control keys
+/// or the private-use characters macOS uses for arrow/function keys (U+F700–U+F8FF).
+func isTypable(_ characters: String) -> Bool {
+    !characters.isEmpty && characters.unicodeScalars.allSatisfy { c in
+        !CharacterSet.controlCharacters.contains(c) && !(0xF700...0xF8FF).contains(c.value)
+    }
+}
+
 func copyToPasteboard(_ s: String) {
     #if canImport(UIKit)
     UIPasteboard.general.string = s

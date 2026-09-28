@@ -84,7 +84,7 @@ private func score(_ q: String, _ s: String) -> Int {
 }
 
 /// In-memory index over all kanji. Build once at launch.
-// ponytail: linear scan of ~10k entries per keystroke (a few ms); add a prefix index if the words pack makes it slow
+// ponytail: linear scan of ~10k entries per keystroke (~20-40 ms, run off the main thread); add a prefix index if the words pack makes it slow
 struct Searcher: Sendable {
     private struct Entry: Sendable {
         let kanji: Kanji

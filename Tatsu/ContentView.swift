@@ -10,6 +10,8 @@ struct ContentView: View {
     @State private var searching = false
     @State private var selection: String?
     @State private var showAbout = false
+    // results and the query they belong to; filled off the main thread by .task(id: query)
+    @State private var found: (query: String, kanji: [Kanji]) = ("", [])
 
     private var isBlank: Bool { query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
@@ -18,14 +20,16 @@ struct ContentView: View {
             List(selection: $selection) {
                 if isBlank {
                     recentSection
-                } else {
-                    let results = searcher.search(query)
-                    if results.isEmpty {
-                        noMatches
-                    } else {
-                        ForEach(results) { row($0) }
-                    }
+                } else if !found.kanji.isEmpty {
+                    ForEach(found.kanji) { row($0) }
+                } else if found.query == query {
+                    noMatches
                 }
+            }
+            .task(id: query) {
+                let (q, s) = (query, searcher)
+                let hits = await Task.detached { s.search(q) }.value
+                if !Task.isCancelled { found = (q, hits) }
             }
             .navigationTitle("Tatsu")
             .searchable(text: $query, isPresented: $searching, prompt: "English, kana, romaji or kanji")
@@ -34,9 +38,15 @@ struct ContentView: View {
             .textInputAutocapitalization(.never)
             #endif
             // Mac / iPad hardware keyboard: typing while the list has focus goes to the search field
-            .onKeyPress(characters: .alphanumerics, phases: .down) { press in
-                guard !press.modifiers.contains(.command) else { return .ignored }
-                query.append(press.characters)
+            .onKeyPress(phases: .down) { press in
+                guard press.modifiers.isDisjoint(with: [.command, .control, .option]) else { return .ignored }
+                if press.key == .delete, !query.isEmpty {
+                    query.removeLast()
+                } else if isTypable(press.characters) {
+                    query.append(press.characters)
+                } else {
+                    return .ignored
+                }
                 searching = true
                 return .handled
             }
@@ -59,7 +69,9 @@ struct ContentView: View {
             }
         }
         .onChange(of: selection) { _, k in
-            if let k { Recent.touch(k, in: context) }
+            // only record picks from search results: touching while browsing Recents
+            // would re-sort the list under the selection
+            if let k, !isBlank { Recent.touch(k, in: context) }
         }
         .sheet(isPresented: $showAbout) { AboutView() }
     }
