@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Download KANJIDIC2 and emit data.js for the app. Run once; output is committed."""
+"""Download KANJIDIC2 and emit Tatsu/kanji.json for the app. Run once; output is committed."""
 import gzip, json, urllib.request, xml.etree.ElementTree as ET, os
 
 URL = "http://www.edrdg.org/kanjidic/kanjidic2.xml.gz"
@@ -34,6 +34,6 @@ for ch in root.iter("character"):
 
 # common kanji first: has freq rank (lower = more common), then by grade
 out.sort(key=lambda e: (e["f"] or 9999, e["g"] or 99, e["s"]))
-with open("data.js", "w") as f:
-    f.write("window.KANJI=" + json.dumps(out, ensure_ascii=False, separators=(",", ":")) + ";\n")
-print(len(out), "kanji written to data.js")
+with open("Tatsu/kanji.json", "w", encoding="utf-8") as f:
+    json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+print(len(out), "kanji written to Tatsu/kanji.json")
