@@ -47,3 +47,13 @@ export GIT_COMMITTER_EMAIL="1280330+Abbabon@users.noreply.github.com"
 
 Do not add co-author trailers (`Co-Authored-By:`) or any other trailer that attributes the
 commit to a different person or tool.
+
+## Running tests
+
+Always run the tests on the iOS Simulator, never the macOS destination (it launches the app and takes over the machine):
+
+```bash
+xcodebuild -project Tatsu.xcodeproj -scheme Tatsu -destination 'platform=iOS Simulator,name=iPhone 16 Pro' CODE_SIGNING_ALLOWED=NO test
+```
+
+Never drive the Mac UI with osascript/System Events keystrokes or clicks without asking the user first. Mac-only UI behaviour goes into a manual checklist for the user.

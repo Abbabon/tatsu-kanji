@@ -20,6 +20,13 @@ struct TatsuApp: App {
 
 #if os(macOS)
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // Hide the Dock icon and prevent focus steal when running under XCTest.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            NSApp.setActivationPolicy(.prohibited)
+        }
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 }
 #endif
