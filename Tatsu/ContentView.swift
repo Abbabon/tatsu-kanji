@@ -139,8 +139,16 @@ struct ContentView: View {
                     .lineLimit(1)
             }
         }
-        .tag(e.k)
+        // fill the whole row so the tap area isn't just the text's intrinsic width
+        .frame(maxWidth: .infinity, alignment: .leading)
+        #if os(iOS)
+        // iOS insets are outside the view (untappable by our gesture); move them inside it
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .listRowInsets(EdgeInsets())
+        #endif
         .contentShape(Rectangle())
+        .tag(e.k)
         // clicks/taps are explicit picks; arrow-key selection changes are not recorded
         .simultaneousGesture(TapGesture().onEnded { Recent.touch(e.k, in: context) })
         .contextMenu {
