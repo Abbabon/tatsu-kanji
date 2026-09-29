@@ -16,7 +16,7 @@ Ship Tatsu, the offline kanji lookup, on the App Store for iPhone, iPad and Mac 
 | Distribution | One App Store record covering iOS and macOS. `make_app.sh` is removed. |
 | Price | Free. |
 | Minimum OS | iOS 17, iPadOS 17, macOS 14. |
-| Name | Store name "Tatsu – Offline Kanji", home-screen name "Tatsu", bundle ID `com.abbabon.tatsu`. |
+| Name | Store name "Tatsu – Offline Kanji", home-screen name "Tatsu", bundle ID `com.abbabon.kanji-offline`. |
 | Language | English interface, with strings in a String Catalog so translation is possible later. |
 | Network | None in version 1. Later packs download from GitHub Releases. |
 | Privacy | "Data Not Collected". Recent lookups stay on the device and are not synced. |
