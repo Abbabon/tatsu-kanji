@@ -24,7 +24,7 @@ struct ContentView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(selection: $selection) {
+            List(selection: listSelection) {
                 if isBlank {
                     recentSection
                 } else if !found.kanji.isEmpty {
@@ -146,18 +146,16 @@ struct ContentView: View {
                     .lineLimit(1)
             }
         }
-        // fill the whole row so the tap area isn't just the text's intrinsic width
+        // fill the whole row so the click area isn't just the text's intrinsic width
         .frame(maxWidth: .infinity, alignment: .leading)
-        #if os(iOS)
-        // iOS insets are outside the view (untappable by our gesture); move them inside it
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .listRowInsets(EdgeInsets())
-        #endif
         .contentShape(Rectangle())
         .tag(e.k)
-        // clicks/taps are explicit picks; arrow-key selection changes are not recorded
+        #if os(macOS)
+        // clicks are explicit picks; arrow-key selection changes are not recorded.
+        // Not on iOS: there any tap gesture on the row swallows the tap before the List's
+        // cell selection sees it, so rows never open (listSelection records taps there)
         .simultaneousGesture(TapGesture().onEnded { Recent.touch(e.k, in: context) })
+        #endif
         .contextMenu {
             Button("Copy", systemImage: "doc.on.doc") { copy(e.k) }
             if inRecents {
@@ -167,6 +165,20 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    /// iOS: the List only writes selection for a tap, so record picks here. Arrow keys set
+    /// `selection` directly and skip this. The Mac List also writes it for its own arrow
+    /// navigation, so there the row's click gesture records instead.
+    private var listSelection: Binding<String?> {
+        #if os(iOS)
+        Binding(get: { selection }, set: { k in
+            selection = k
+            if let k { Recent.touch(k, in: context) }
+        })
+        #else
+        $selection
+        #endif
     }
 
     /// Return: record the current pick, or pick (and record) the first result.

@@ -28,6 +28,9 @@
     "English, kana, romaji or kanji" : {
 
     },
+    "English, kana, romaji, or kanji" : {
+
+    },
     "Find" : {
 
     },
@@ -46,16 +49,22 @@
     "Offline kanji lookup. No account, no network." : {
 
     },
-    "Pick a kanji" : {
-
-    },
     "Recent" : {
 
     },
     "Remove from History" : {
 
     },
+    "Search for a kanji" : {
+
+    },
     "Source code" : {
+
+    },
+    "Start typing to search" : {
+
+    },
+    "Tap the search field and type English, kana, romaji, or kanji" : {
 
     },
     "Tatsu" : {

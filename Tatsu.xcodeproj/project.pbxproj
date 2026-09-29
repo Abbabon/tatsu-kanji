@@ -14,11 +14,19 @@
 			remoteGlobalIDString = A10000000000000000000020;
 			remoteInfo = Tatsu;
 		};
+		A10000000000000000000012 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A10000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000000000000000000020;
+			remoteInfo = Tatsu;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		A10000000000000000000030 /* Tatsu.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tatsu.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000031 /* TatsuTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TatsuTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000032 /* TatsuUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TatsuUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -30,6 +38,11 @@
 		A10000000000000000000041 /* TatsuTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = TatsuTests;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000042 /* TatsuUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TatsuUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -49,6 +62,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000056 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -57,6 +77,7 @@
 			children = (
 				A10000000000000000000040 /* Tatsu */,
 				A10000000000000000000041 /* TatsuTests */,
+				A10000000000000000000042 /* TatsuUITests */,
 				A10000000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -66,6 +87,7 @@
 			children = (
 				A10000000000000000000030 /* Tatsu.app */,
 				A10000000000000000000031 /* TatsuTests.xctest */,
+				A10000000000000000000032 /* TatsuUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -114,6 +136,27 @@
 			productReference = A10000000000000000000031 /* TatsuTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		A10000000000000000000022 /* TatsuUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000063 /* Build configuration list for PBXNativeTarget "TatsuUITests" */;
+			buildPhases = (
+				A10000000000000000000057 /* Sources */,
+				A10000000000000000000056 /* Frameworks */,
+				A10000000000000000000058 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A10000000000000000000013 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A10000000000000000000042 /* TatsuUITests */,
+			);
+			name = TatsuUITests;
+			productName = TatsuUITests;
+			productReference = A10000000000000000000032 /* TatsuUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -128,6 +171,10 @@
 						CreatedOnToolsVersion = 26.2;
 					};
 					A10000000000000000000021 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = A10000000000000000000020;
+					};
+					A10000000000000000000022 = {
 						CreatedOnToolsVersion = 26.2;
 						TestTargetID = A10000000000000000000020;
 					};
@@ -149,6 +196,7 @@
 			targets = (
 				A10000000000000000000020 /* Tatsu */,
 				A10000000000000000000021 /* TatsuTests */,
+				A10000000000000000000022 /* TatsuUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -162,6 +210,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A10000000000000000000055 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000058 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -185,6 +240,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000057 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -192,6 +254,11 @@
 			isa = PBXTargetDependency;
 			target = A10000000000000000000020 /* Tatsu */;
 			targetProxy = A10000000000000000000010 /* PBXContainerItemProxy */;
+		};
+		A10000000000000000000013 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000000000000000000020 /* Tatsu */;
+			targetProxy = A10000000000000000000012 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -295,8 +362,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				DEVELOPMENT_TEAM = 935DPR326H;
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 935DPR326H;
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.abbabon.kanji-offline.tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -313,8 +380,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				DEVELOPMENT_TEAM = 935DPR326H;
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 935DPR326H;
 				GENERATE_INFOPLIST_FILE = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.abbabon.kanji-offline.tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -324,6 +391,40 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Tatsu.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Tatsu";
+			};
+			name = Release;
+		};
+		A10000000000000000000076 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 935DPR326H;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.abbabon.kanji-offline.uitests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Tatsu;
+			};
+			name = Debug;
+		};
+		A10000000000000000000077 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 935DPR326H;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.abbabon.kanji-offline.uitests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Tatsu;
 			};
 			name = Release;
 		};
@@ -353,6 +454,15 @@
 			buildConfigurations = (
 				A10000000000000000000070 /* Debug */,
 				A10000000000000000000071 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A10000000000000000000063 /* Build configuration list for PBXNativeTarget "TatsuUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000076 /* Debug */,
+				A10000000000000000000077 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
