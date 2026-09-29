@@ -118,6 +118,7 @@ struct ContentView: View {
                         searching = true
                     }
                         .font(.caption)
+                        .padding(.trailing, 8)
                 }
             }
         }
