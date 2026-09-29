@@ -36,9 +36,36 @@ final class ScreenshotTests: XCTestCase {
         return cell
     }
 
+    /// iPad landscape: sidebar + detail side by side. XCUIScreen captures the raw portrait
+    /// framebuffer (2064x2752), so rotate the iPad PNGs afterwards: `sips -r 270 file.png` -> 2752x2064.
+    private func padShots() throws {
+        func selectAndSubmit(_ glyph: String) {
+            let cell = app.cells.containing(.staticText, identifier: glyph).firstMatch
+            XCTAssertTrue(cell.waitForExistence(timeout: 10))
+            cell.tap()
+            XCTAssertTrue(app.buttons["Copy"].waitForExistence(timeout: 5))
+            // The keyboard's Search key submits and resigns the field (Hide keyboard leaves a dictation bar)
+            let key = app.keyboards.buttons["search"]
+            if key.waitForExistence(timeout: 5) { key.tap() }
+        }
+        search("water")
+        selectAndSubmit("水")
+        try shot(1, "search")
+
+        app.buttons["Cancel"].tap()
+        search("mountain")
+        selectAndSubmit("山")
+        try shot(2, "detail")
+
+        app.buttons["Cancel"].tap()
+        selectAndSubmit("日")
+        try shot(3, "recent")
+    }
+
     func testScreenshots() throws {
         try XCTSkipUnless(env["TATSU_SCREENSHOTS"] == "1", "set TEST_RUNNER_TATSU_SCREENSHOTS=1")
         continueAfterFailure = false
+        if isPad { XCUIDevice.shared.orientation = .landscapeLeft }  // side-by-side split view
         app.launch()
 
         let clear = app.buttons.matching(NSPredicate(format: "label ==[c] 'clear'")).firstMatch
@@ -54,6 +81,8 @@ final class ScreenshotTests: XCTestCase {
             if !isPad { app.navigationBars.buttons.firstMatch.tap() }
             app.buttons["Cancel"].tap()
         }
+
+        if isPad { try padShots(); return }
 
         // 1: results for "water", keyboard dismissed.
         search("water")
