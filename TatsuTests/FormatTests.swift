@@ -47,4 +47,28 @@ struct FormatTests {
         #expect(stepSelection("gone", in: ids, by: 1) == "a")
         #expect(stepSelection("a", in: [], by: 1) == nil)
     }
+
+    // Mac key monitor: type-anywhere into search, arrows step results only from the search field
+    @Test func macKeyRouting() {
+        func route(_ code: UInt16, _ chars: String, shortcut: Bool = false, shift: Bool = false,
+                   _ focus: KeyFocus = .other, queryEmpty: Bool = false) -> KeyRoute {
+            keyRoute(keyCode: code, characters: chars, shortcut: shortcut, shift: shift, focus: focus, queryEmpty: queryEmpty)
+        }
+        #expect(route(13, "w") == .toSearch)                       // nothing / list / detail focused
+        #expect(route(13, "W", shift: true) == .toSearch)
+        #expect(route(49, " ") == .toSearch)
+        #expect(route(13, "w", .searchField) == .pass)             // field already has it
+        #expect(route(13, "w", .textInput) == .pass)
+        #expect(route(3, "f", shortcut: true) == .pass)            // ⌘F etc.
+        #expect(route(51, "\u{7F}") == .toSearch)                 // backspace edits the query
+        #expect(route(51, "\u{7F}", queryEmpty: true) == .pass)
+        #expect(route(36, "\r") == .pass)                         // return
+        #expect(route(53, "\u{1B}") == .pass)                     // escape
+        #expect(route(48, "\t") == .pass)                         // tab
+        #expect(route(122, "\u{F704}") == .pass)                  // F1
+        #expect(route(125, "\u{F701}", .searchField) == .step(1))
+        #expect(route(126, "\u{F700}", .searchField) == .step(-1))
+        #expect(route(125, "\u{F701}", shift: true, .searchField) == .pass)
+        #expect(route(125, "\u{F701}") == .pass)                  // list handles its own arrows
+    }
 }

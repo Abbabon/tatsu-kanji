@@ -49,6 +49,23 @@ func stepSelection(_ current: String?, in ids: [String], by delta: Int) -> Strin
     return ids[min(max(i + delta, 0), ids.count - 1)]
 }
 
+enum KeyFocus { case searchField, textInput, other }
+enum KeyRoute: Equatable { case pass, step(Int), toSearch }
+
+/// Where the Mac key monitor sends a key-down: up/down in the search field step the
+/// results; typing (or backspace) anywhere else in the window goes to the search field;
+/// shortcuts, control keys and other text inputs are left alone.
+func keyRoute(keyCode: UInt16, characters: String, shortcut: Bool, shift: Bool,
+              focus: KeyFocus, queryEmpty: Bool) -> KeyRoute {
+    guard !shortcut else { return .pass }
+    if keyCode == 125 || keyCode == 126 {  // down, up
+        return focus == .searchField && !shift ? .step(keyCode == 125 ? 1 : -1) : .pass
+    }
+    guard focus == .other else { return .pass }
+    if keyCode == 51 { return queryEmpty ? .pass : .toSearch }  // backspace
+    return isTypable(characters) ? .toSearch : .pass
+}
+
 func copyToPasteboard(_ s: String) {
     #if canImport(UIKit)
     UIPasteboard.general.string = s

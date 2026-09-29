@@ -11,7 +11,7 @@ struct ContentView: View {
     @State private var selection: String?
     @State private var showAbout = false
     #if os(macOS)
-    @State private var arrowMonitor: Any?
+    @State private var keyMonitor: Any?
     #endif
     // Recent order shown; frozen while browsing so a click doesn't re-sort under the cursor,
     // refreshed whenever the recents are shown again (query cleared)
@@ -60,12 +60,18 @@ struct ContentView: View {
             if let k = selection, let e = searcher.kanji(k) {
                 KanjiDetail(kanji: e) { copy(e.k) }
             } else {
-                Text("Pick a kanji").foregroundStyle(.secondary)
+                #if os(macOS)
+                ContentUnavailableView("Start typing to search", systemImage: "magnifyingglass",
+                                       description: Text("English, kana, romaji, or kanji"))
+                #else
+                ContentUnavailableView("Search for a kanji", systemImage: "magnifyingglass",
+                                       description: Text("Tap the search field and type English, kana, romaji, or kanji"))
+                #endif
             }
         }
-        // Mac / iPad hardware keyboard: typing anywhere in the window goes to the search field,
-        // and up/down move the selection when no text field has them (Mac search field: see
-        // installArrowMonitor)
+        // iPad hardware keyboard: typing anywhere goes to the search field; up/down move the
+        // selection when no text field has them. On the Mac installKeyMonitor gets typed keys
+        // first, so this only handles up/down there.
         .onKeyPress(phases: [.down, .repeat]) { press in
             guard press.modifiers.isDisjoint(with: [.command, .control, .option]) else { return .ignored }
             if press.key == .downArrow || press.key == .upArrow {
@@ -85,8 +91,8 @@ struct ContentView: View {
         .task { searching = true }  // launch: focus the search field
         .onAppear { syncRecents(resort: true) }
         #if os(macOS)
-        .onAppear { installArrowMonitor() }
-        .onDisappear { arrowMonitor.map(NSEvent.removeMonitor); arrowMonitor = nil }
+        .onAppear { installKeyMonitor() }
+        .onDisappear { keyMonitor.map(NSEvent.removeMonitor); keyMonitor = nil }
         #endif
         .onChange(of: isBlank) { _, blank in if blank { syncRecents(resort: true) } }
         .onChange(of: recents.map(\.kanji)) { syncRecents(resort: false) }
@@ -177,18 +183,37 @@ struct ContentView: View {
     }
 
     #if os(macOS)
-    /// The search field's field editor (AppKit) eats up/down as caret moves before SwiftUI's
-    /// onKeyPress sees them, so catch them first — only while that field editor has focus.
-    private func installArrowMonitor() {
-        guard arrowMonitor == nil else { return }
-        arrowMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            guard event.keyCode == 125 || event.keyCode == 126,  // down, up
-                  event.modifierFlags.isDisjoint(with: [.command, .control, .option, .shift]),
-                  let editor = event.window?.firstResponder as? NSTextView,
-                  editor.isFieldEditor, editor.delegate is NSSearchField
-            else { return event }
-            selection = stepSelection(selection, in: visibleIDs, by: event.keyCode == 125 ? 1 : -1)
-            return nil
+    /// Type-anywhere on the Mac: SwiftUI's onKeyPress only sees keys when a focusable view
+    /// has focus (at launch the window itself is first responder, so it sees nothing), and
+    /// `searching = true` doesn't refocus a field it considers presented, so route key-downs
+    /// here first. Typed keys go
+    /// to the search field itself (keeping input methods working); up/down in the field
+    /// step the results instead of moving the caret.
+    private func installKeyMonitor() {
+        guard keyMonitor == nil else { return }
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard let window = event.window else { return event }
+            let focus: KeyFocus = switch window.firstResponder {
+            case let t as NSTextView where t.isFieldEditor && t.delegate is NSSearchField: .searchField
+            case is NSText, is NSTextField: .textInput
+            default: .other
+            }
+            let flags = event.modifierFlags
+            switch keyRoute(keyCode: event.keyCode, characters: event.characters ?? "",
+                            shortcut: !flags.isDisjoint(with: [.command, .control, .option]),
+                            shift: flags.contains(.shift), focus: focus, queryEmpty: query.isEmpty) {
+            case .pass:
+                return event
+            case .step(let delta):
+                selection = stepSelection(selection, in: visibleIDs, by: delta)
+                return nil
+            case .toSearch:
+                let field = window.toolbar?.items.lazy.compactMap { ($0 as? NSSearchToolbarItem)?.searchField }.first
+                guard let field, window.makeFirstResponder(field), let editor = field.currentEditor() else { return event }
+                // focusing selects all; put the caret at the end, then let AppKit deliver the key to the field
+                editor.selectedRange = NSRange(location: (editor.string as NSString).length, length: 0)
+                return event
+            }
         }
     }
     #endif
