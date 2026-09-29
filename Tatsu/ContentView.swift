@@ -10,6 +10,9 @@ struct ContentView: View {
     @State private var searching = false
     @State private var selection: String?
     @State private var showAbout = false
+    #if os(macOS)
+    @State private var arrowMonitor: Any?
+    #endif
     // Recent order shown; frozen while browsing so a click doesn't re-sort under the cursor,
     // refreshed whenever the recents are shown again (query cleared)
     @State private var recentOrder: [String] = []
@@ -61,7 +64,8 @@ struct ContentView: View {
             }
         }
         // Mac / iPad hardware keyboard: typing anywhere in the window goes to the search field,
-        // and up/down move the selection while focus stays there
+        // and up/down move the selection when no text field has them (Mac search field: see
+        // installArrowMonitor)
         .onKeyPress(phases: [.down, .repeat]) { press in
             guard press.modifiers.isDisjoint(with: [.command, .control, .option]) else { return .ignored }
             if press.key == .downArrow || press.key == .upArrow {
@@ -80,6 +84,10 @@ struct ContentView: View {
         }
         .task { searching = true }  // launch: focus the search field
         .onAppear { syncRecents(resort: true) }
+        #if os(macOS)
+        .onAppear { installArrowMonitor() }
+        .onDisappear { arrowMonitor.map(NSEvent.removeMonitor); arrowMonitor = nil }
+        #endif
         .onChange(of: isBlank) { _, blank in if blank { syncRecents(resort: true) } }
         .onChange(of: recents.map(\.kanji)) { syncRecents(resort: false) }
         .sheet(isPresented: $showAbout) { AboutView() }
@@ -159,6 +167,23 @@ struct ContentView: View {
         let latest = recents.map(\.kanji)
         recentOrder = resort ? latest : latest.filter { !recentOrder.contains($0) } + recentOrder.filter(latest.contains)
     }
+
+    #if os(macOS)
+    /// The search field's field editor (AppKit) eats up/down as caret moves before SwiftUI's
+    /// onKeyPress sees them, so catch them first — only while that field editor has focus.
+    private func installArrowMonitor() {
+        guard arrowMonitor == nil else { return }
+        arrowMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard event.keyCode == 125 || event.keyCode == 126,  // down, up
+                  event.modifierFlags.isDisjoint(with: [.command, .control, .option, .shift]),
+                  let editor = event.window?.firstResponder as? NSTextView,
+                  editor.isFieldEditor, editor.delegate is NSSearchField
+            else { return event }
+            selection = stepSelection(selection, in: visibleIDs, by: event.keyCode == 125 ? 1 : -1)
+            return nil
+        }
+    }
+    #endif
 
     private func copy(_ k: String) {
         copyToPasteboard(k)
