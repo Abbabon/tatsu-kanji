@@ -47,4 +47,17 @@ struct RecentTests {
         Recent.clear(in: context)
         #expect(try all().isEmpty)
     }
+
+    @Test func removeDropsOnlyThatKanji() throws {
+        Recent.touch("水", at: Date(timeIntervalSince1970: 1), in: context)
+        Recent.touch("日", at: Date(timeIntervalSince1970: 2), in: context)
+        Recent.remove("日", in: context)
+        #expect(try all() == ["水"])
+    }
+
+    @Test func removingMissingKanjiIsNoOp() throws {
+        Recent.touch("水", in: context)
+        Recent.remove("火", in: context)
+        #expect(try all() == ["水"])
+    }
 }

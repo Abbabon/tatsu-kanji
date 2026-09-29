@@ -10,10 +10,14 @@ struct ContentView: View {
     @State private var searching = false
     @State private var selection: String?
     @State private var showAbout = false
+    // Recent order shown; frozen while browsing so a click doesn't re-sort under the cursor,
+    // refreshed whenever the recents are shown again (query cleared)
+    @State private var recentOrder: [String] = []
     // results and the query they belong to; filled off the main thread by .task(id: query)
     @State private var found: (query: String, kanji: [Kanji]) = ("", [])
 
     private var isBlank: Bool { query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var visibleIDs: [String] { isBlank ? recentOrder : found.kanji.map(\.k) }
 
     var body: some View {
         NavigationSplitView {
@@ -33,23 +37,11 @@ struct ContentView: View {
             }
             .navigationTitle("Tatsu")
             .searchable(text: $query, isPresented: $searching, prompt: "English, kana, romaji or kanji")
+            .onSubmit(of: .search) { enter() }
             .autocorrectionDisabled()
             #if os(iOS)
             .textInputAutocapitalization(.never)
             #endif
-            // Mac / iPad hardware keyboard: typing while the list has focus goes to the search field
-            .onKeyPress(phases: .down) { press in
-                guard press.modifiers.isDisjoint(with: [.command, .control, .option]) else { return .ignored }
-                if press.key == .delete, !query.isEmpty {
-                    query.removeLast()
-                } else if isTypable(press.characters) {
-                    query.append(press.characters)
-                } else {
-                    return .ignored
-                }
-                searching = true
-                return .handled
-            }
             .toolbar {
                 ToolbarItem {
                     Button("About", systemImage: "info.circle") { showAbout = true }
@@ -68,28 +60,49 @@ struct ContentView: View {
                 Text("Pick a kanji").foregroundStyle(.secondary)
             }
         }
-        .onChange(of: selection) { _, k in
-            // only record picks from search results: touching while browsing Recents
-            // would re-sort the list under the selection
-            if let k, !isBlank { Recent.touch(k, in: context) }
+        // Mac / iPad hardware keyboard: typing anywhere in the window goes to the search field,
+        // and up/down move the selection while focus stays there
+        .onKeyPress(phases: [.down, .repeat]) { press in
+            guard press.modifiers.isDisjoint(with: [.command, .control, .option]) else { return .ignored }
+            if press.key == .downArrow || press.key == .upArrow {
+                selection = stepSelection(selection, in: visibleIDs, by: press.key == .downArrow ? 1 : -1)
+                return .handled
+            }
+            if press.key == .delete, !query.isEmpty {
+                query.removeLast()
+            } else if isTypable(press.characters) {
+                query.append(press.characters)
+            } else {
+                return .ignored
+            }
+            searching = true
+            return .handled
         }
+        .task { searching = true }  // launch: focus the search field
+        .onAppear { syncRecents(resort: true) }
+        .onChange(of: isBlank) { _, blank in if blank { syncRecents(resort: true) } }
+        .onChange(of: recents.map(\.kanji)) { syncRecents(resort: false) }
         .sheet(isPresented: $showAbout) { AboutView() }
     }
 
     @ViewBuilder private var recentSection: some View {
         // recents whose kanji vanished after a data update are skipped
-        let items = recents.compactMap { searcher.kanji($0.kanji) }
+        let items = recentOrder.compactMap { searcher.kanji($0) }
         if items.isEmpty {
             Text("Type English, hiragana, katakana, romaji, or paste kanji.")
                 .foregroundStyle(.secondary)
         } else {
             Section {
-                ForEach(items) { row($0) }
+                ForEach(items) { row($0, inRecents: true) }
             } header: {
                 HStack {
                     Text("Recent")
                     Spacer()
-                    Button("Clear") { Recent.clear(in: context) }
+                    Button("Clear") {
+                        Recent.clear(in: context)
+                        selection = nil
+                        searching = true
+                    }
                         .font(.caption)
                 }
             }
@@ -107,7 +120,7 @@ struct ContentView: View {
         }
     }
 
-    private func row(_ e: Kanji) -> some View {
+    private func row(_ e: Kanji, inRecents: Bool = false) -> some View {
         HStack(spacing: 12) {
             Text(e.k).font(.system(size: 40))
             VStack(alignment: .leading, spacing: 2) {
@@ -119,9 +132,32 @@ struct ContentView: View {
             }
         }
         .tag(e.k)
+        .contentShape(Rectangle())
+        // clicks/taps are explicit picks; arrow-key selection changes are not recorded
+        .simultaneousGesture(TapGesture().onEnded { Recent.touch(e.k, in: context) })
         .contextMenu {
             Button("Copy", systemImage: "doc.on.doc") { copy(e.k) }
+            if inRecents {
+                Button("Remove from History", systemImage: "trash") {
+                    Recent.remove(e.k, in: context)
+                    if selection == e.k { selection = nil }
+                }
+            }
         }
+    }
+
+    /// Return: record the current pick, or pick (and record) the first result.
+    private func enter() {
+        guard let k = selection ?? visibleIDs.first else { return }
+        selection = k
+        Recent.touch(k, in: context)
+    }
+
+    /// Keep the shown Recent order in step with the store. Without `resort`, existing
+    /// entries keep their place and new ones go on top.
+    private func syncRecents(resort: Bool) {
+        let latest = recents.map(\.kanji)
+        recentOrder = resort ? latest : latest.filter { !recentOrder.contains($0) } + recentOrder.filter(latest.contains)
     }
 
     private func copy(_ k: String) {

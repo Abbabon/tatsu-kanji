@@ -42,6 +42,13 @@ func isTypable(_ characters: String) -> Bool {
     }
 }
 
+/// The id one step down (+1) or up (-1) from `current`, clamped to the ends.
+/// With nothing (or something no longer listed) selected, the first id.
+func stepSelection(_ current: String?, in ids: [String], by delta: Int) -> String? {
+    guard let i = current.flatMap({ ids.firstIndex(of: $0) }) else { return ids.first }
+    return ids[min(max(i + delta, 0), ids.count - 1)]
+}
+
 func copyToPasteboard(_ s: String) {
     #if canImport(UIKit)
     UIPasteboard.general.string = s

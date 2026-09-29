@@ -28,6 +28,12 @@ final class Recent {
         try? context.save()
     }
 
+    static func remove(_ kanji: String, in context: ModelContext) {
+        let same = FetchDescriptor<Recent>(predicate: #Predicate { $0.kanji == kanji })
+        for r in (try? context.fetch(same)) ?? [] { context.delete(r) }
+        try? context.save()
+    }
+
     static func clear(in context: ModelContext) {
         for r in (try? context.fetch(FetchDescriptor<Recent>())) ?? [] { context.delete(r) }
         try? context.save()

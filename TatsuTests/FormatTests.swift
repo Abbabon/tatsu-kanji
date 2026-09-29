@@ -36,4 +36,15 @@ struct FormatTests {
         let rare = Kanji(k: "鬱", m: ["gloom"], on: [], kun: [], n: [], s: 29, g: 0, j: 0, f: 0)
         #expect(metaLine(rare) == "29 strokes")
     }
+
+    @Test func steppingSelection() {
+        let ids = ["a", "b", "c"]
+        #expect(stepSelection(nil, in: ids, by: 1) == "a")
+        #expect(stepSelection(nil, in: ids, by: -1) == "a")
+        #expect(stepSelection("a", in: ids, by: 1) == "b")
+        #expect(stepSelection("c", in: ids, by: 1) == "c")  // clamps
+        #expect(stepSelection("a", in: ids, by: -1) == "a")
+        #expect(stepSelection("gone", in: ids, by: 1) == "a")
+        #expect(stepSelection("a", in: [], by: 1) == nil)
+    }
 }
