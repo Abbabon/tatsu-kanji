@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Download KANJIDIC2 and emit data.js for the app. Run once; output is committed."""
-import gzip, json, urllib.request, xml.etree.ElementTree as ET, os
+"""Download KANJIDIC2 and emit Tatsu/kanji.json for the app. Run once; output is committed."""
+import gzip, json, urllib.request, xml.etree.ElementTree as ET, os, unicodedata
 
 URL = "http://www.edrdg.org/kanjidic/kanjidic2.xml.gz"
 GZ = "kanjidic2.xml.gz"
@@ -20,8 +20,12 @@ for ch in root.iter("character"):
     meanings = [m.text for m in rm.iter("meaning") if m.get("m_lang") is None]
     if not meanings:
         continue
+    k = ch.findtext("literal")
+    # CJK compatibility ideographs (e.g. U+FA19) normalise to a unified kanji; Swift would treat them as duplicates
+    if unicodedata.normalize("NFC", k) != k:
+        continue
     out.append({
-        "k": ch.findtext("literal"),
+        "k": k,
         "m": meanings,
         "on": readings("ja_on"),
         "kun": readings("ja_kun"),
@@ -34,6 +38,6 @@ for ch in root.iter("character"):
 
 # common kanji first: has freq rank (lower = more common), then by grade
 out.sort(key=lambda e: (e["f"] or 9999, e["g"] or 99, e["s"]))
-with open("data.js", "w") as f:
-    f.write("window.KANJI=" + json.dumps(out, ensure_ascii=False, separators=(",", ":")) + ";\n")
-print(len(out), "kanji written to data.js")
+with open("Tatsu/kanji.json", "w", encoding="utf-8") as f:
+    json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+print(len(out), "kanji written to Tatsu/kanji.json")

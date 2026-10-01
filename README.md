@@ -1,22 +1,14 @@
 <p align="center"><img src="logo.png" width="160" alt="Tatsu"></p>
 <h1 align="center">Tatsu</h1>
-<p align="center"><b>断</b> · <i>tatsu</i> · to cut off, to sever<br>Offline kanji lookup for macOS.</p>
+<p align="center"><b>断</b> · <i>tatsu</i> · to cut off, to sever<br>Offline kanji lookup for iPhone, iPad and Mac.</p>
 
 ---
 
-Type English, hiragana, katakana, romaji, or paste a sentence of kanji. Get the character, every reading as furigana with romaji, meanings, stroke count, school grade, JLPT level, and frequency rank. No account, no network, no Electron.
+Type English, hiragana, katakana, romaji, or paste a sentence of kanji. Get the character, every reading with its kana and romaji, meanings, stroke count, school grade, JLPT level, and frequency rank. No account, no network.
 
 ## Install
 
-Needs the Xcode command line tools (`xcode-select --install`) for `swiftc`.
-
-```sh
-git clone https://github.com/Abbabon/tatsu-kanji
-cd tatsu-kanji
-./make_app.sh install     # builds Tatsu.app and copies it to /Applications
-```
-
-Without `install` the app is left next to the script. You can also skip the app and `open index.html` in any browser.
+From the App Store (iPhone, iPad and Mac). To build it yourself, open `Tatsu.xcodeproj` in Xcode 26 or later and press Run.
 
 ## Search
 
@@ -30,32 +22,37 @@ Without `install` the app is left next to the script. You can also skip the app 
 
 Ranking: exact match, then prefix, then whole word, then substring, then one edit away, then scattered letters. Ties go to the more frequent kanji.
 
-## Keys
+Tap a kanji to see its details. Copy it from the detail view, or long-press (right-click on Mac) a result. Kanji you open or copy appear under Recent when the search box is empty. Recent lookups stay on the device.
 
-- Type anywhere, the search box takes it.
-- `Esc` clears.
-- Click a kanji to copy it.
-- Dark mode follows the system.
+Can't type a kanji on iPhone? Add the Chinese – Handwriting keyboard and draw it.
 
 ## Project layout
 
-| File | Role |
+| Path | Role |
 |---|---|
-| `index.html` | The whole UI. Furigana uses native `<ruby>`. |
-| `search.js` | Kana to romaji, normalisation, scoring. Shared with the test. |
-| `data.js` | Generated from KANJIDIC2. 10,384 kanji, committed so the app works offline out of the box. |
-| `build_data.py` | Regenerates `data.js` from the latest KANJIDIC2. |
-| `main.swift` | 30-line WKWebView window. |
-| `make_app.sh` | Builds the `.app`, renders the icon from `logo.svg`. |
-| `test.js` | `node test.js` checks romaji and ranking. |
+| `Tatsu/Search.swift` | Kana to romaji, normalisation, scoring. |
+| `Tatsu/Kanji.swift` | Data model and loader. |
+| `Tatsu/kanji.json` | Generated from KANJIDIC2, committed so the app builds offline. |
+| `Tatsu/ContentView.swift`, `KanjiDetail.swift`, `AboutView.swift` | SwiftUI interface, shared by all platforms. |
+| `Tatsu/Recent.swift` | Recent lookups (SwiftData). |
+| `TatsuTests/` | Search, formatting and recent lookup tests. |
+| `build_data.py` | Regenerates `kanji.json` from the latest KANJIDIC2. |
+
+## Test
+
+```sh
+xcodebuild -project Tatsu.xcodeproj -scheme Tatsu -destination 'platform=iOS Simulator,name=iPhone 16 Pro' test
+```
+
+Tests run on the iOS Simulator in the background; use any simulator from `xcrun simctl list devices available`. If the simulator can't be found by name, use `id=<UDID>` from that list.
 
 ## Update the dictionary
 
 ```sh
 python3 build_data.py
-node test.js
-./make_app.sh install
 ```
+
+Then run the tests.
 
 ## Data and license
 

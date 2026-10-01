@@ -1,2 +1,5 @@
 kanjidic2.xml.gz
 Tatsu.app
+xcuserdata/
+build/
+.DS_Store

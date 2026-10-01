@@ -1,0 +1,81 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "About" : {
+
+    },
+    "App" : {
+
+    },
+    "App code is MIT licensed." : {
+
+    },
+    "Can't type it? Add the Chinese – Handwriting keyboard in Settings › General › Keyboard › Keyboards, then draw the kanji." : {
+
+    },
+    "CC BY-SA 4.0 license" : {
+
+    },
+    "Clear" : {
+
+    },
+    "Copy" : {
+
+    },
+    "Done" : {
+
+    },
+    "English, kana, romaji or kanji" : {
+
+    },
+    "English, kana, romaji, or kanji" : {
+
+    },
+    "Find" : {
+
+    },
+    "Kanji data" : {
+
+    },
+    "KANJIDIC Project" : {
+
+    },
+    "KANJIDIC2 by the Electronic Dictionary Research and Development Group, used under CC BY-SA 4.0." : {
+
+    },
+    "No matches." : {
+
+    },
+    "Offline kanji lookup. No account, no network." : {
+
+    },
+    "Recent" : {
+
+    },
+    "Remove from History" : {
+
+    },
+    "Search for a kanji" : {
+
+    },
+    "Source code" : {
+
+    },
+    "Start typing to search" : {
+
+    },
+    "Tap the search field and type English, kana, romaji, or kanji" : {
+
+    },
+    "Tatsu" : {
+
+    },
+    "Tatsu · 断 · to cut off, to sever" : {
+
+    },
+    "Type English, hiragana, katakana, romaji, or paste kanji." : {
+
+    }
+  },
+  "version" : "1.0"
+}
