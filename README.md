@@ -44,7 +44,7 @@ Can't type a kanji on iPhone? Add the Chinese – Handwriting keyboard and draw 
 xcodebuild -project Tatsu.xcodeproj -scheme Tatsu -destination 'platform=iOS Simulator,name=iPhone 16 Pro' test
 ```
 
-Tests run on the iOS Simulator in the background; use any simulator from `xcrun simctl list devices available`.
+Tests run on the iOS Simulator in the background; use any simulator from `xcrun simctl list devices available`. If the simulator can't be found by name, use `id=<UDID>` from that list.
 
 ## Update the dictionary
 

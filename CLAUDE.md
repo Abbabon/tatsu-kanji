@@ -56,4 +56,6 @@ Always run the tests on the iOS Simulator, never the macOS destination (it launc
 xcodebuild -project Tatsu.xcodeproj -scheme Tatsu -destination 'platform=iOS Simulator,name=iPhone 16 Pro' CODE_SIGNING_ALLOWED=NO test
 ```
 
+If the simulator can't be found by name, use `id=<UDID>` from `xcrun simctl list devices available`.
+
 Never drive the Mac UI with osascript/System Events keystrokes or clicks without asking the user first. Mac-only UI behaviour goes into a manual checklist for the user.
