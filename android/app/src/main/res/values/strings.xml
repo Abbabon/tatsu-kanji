@@ -1,4 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Tatsu</string>
+
+    <!-- list pane -->
+    <string name="search_hint">English, kana, romaji or kanji</string>
+    <string name="clear_search">Clear search</string>
+    <string name="about">About</string>
+    <string name="recent">Recent</string>
+    <string name="clear">Clear</string>
+    <string name="hint_empty">Type English, hiragana, katakana, romaji, or paste kanji.</string>
+    <string name="no_matches">No matches.</string>
+    <!-- shown under "No matches."; path verified 2026-10-06 against Gboard Help, support.google.com/gboard/answer/9108773 -->
+    <string name="handwriting_hint">To write kanji by hand, add Gboard\'s Japanese Handwriting layout: Gboard settings → Languages → Japanese → Handwriting.</string>
+    <string name="copy">Copy</string>
+    <string name="copied">Copied</string>
+    <string name="remove_history">Remove from history</string>
+
+    <!-- detail pane -->
+    <string name="back">Back</string>
+    <string name="detail_empty_title">Search for a kanji</string>
+    <string name="detail_empty_body">Type English, kana, romaji, or kanji</string>
+    <string name="on_label">ON</string>
+    <string name="kun_label">KUN</string>
+    <string name="names_label">NAMES</string>
+    <string name="meta_strokes">%1$d strokes</string>
+    <string name="meta_grade">grade %1$d</string>
+    <string name="meta_joyo">jōyō (secondary)</string>
+    <string name="meta_jinmei">jinmeiyō</string>
+    <string name="meta_jlpt">JLPT %1$d</string>
+    <string name="meta_freq">#%1$d freq</string>
+
+    <!-- about sheet -->
+    <string name="about_tagline">Tatsu · 断 · to cut off, to sever</string>
+    <string name="about_blurb">Offline kanji lookup. No account, no network.</string>
+    <string name="about_data_title">Kanji data</string>
+    <string name="about_data_credit">KANJIDIC2 by the Electronic Dictionary Research and Development Group, used under CC BY-SA 4.0.</string>
+    <string name="link_kanjidic">KANJIDIC Project</string>
+    <string name="link_cc">CC BY-SA 4.0 license</string>
+    <string name="about_app_title">App</string>
+    <string name="about_mit">App code is MIT licensed.</string>
+    <string name="about_font_credit">The 断 in the app icon is drawn from Noto Serif JP, copyright The Noto Project Authors, licensed under the SIL Open Font License 1.1.</string>
+    <string name="link_source">Source code</string>
 </resources>
