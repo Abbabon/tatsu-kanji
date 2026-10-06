@@ -106,6 +106,13 @@ fun TatsuScreen(vm: TatsuViewModel) {
         } else searchFocused = false
     }
 
+    // one-shot VM event (never `query`, which would also fire after rotation): phone showing a detail -> back to the list
+    LaunchedEffect(Unit) {
+        vm.handOffs.collect {
+            if (navigator.scaffoldValue[ListDetailPaneScaffoldRole.List] == PaneAdaptedValue.Hidden) navigator.navigateBack()
+        }
+    }
+
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
