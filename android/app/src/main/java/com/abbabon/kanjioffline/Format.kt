@@ -53,6 +53,10 @@ fun stepSelection(current: String?, ids: List<String>, delta: Int): String? {
     return ids[(i + delta).coerceIn(0, ids.size - 1)]
 }
 
+/** What Enter opens: the selection if it is still listed, else the first id. */
+fun enterTarget(selected: String?, ids: List<String>): String? =
+    selected?.takeIf { it in ids } ?: ids.firstOrNull()
+
 /** New recents go on top, vanished ones drop out, everything else keeps its place. */
 fun mergeOrder(shown: List<String>, latest: List<String>): List<String> =
     latest.filter { it !in shown } + shown.filter { it in latest }

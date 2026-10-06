@@ -83,6 +83,16 @@ class FormatTests {
         assertNull(stepSelection("a", emptyList(), 1))
     }
 
+    // Final review I1: Enter uses the selection only while it is listed, else the first id
+    @Test
+    fun enterTargetIgnoresStaleSelection() {
+        val ids = listOf("a", "b")
+        assertEquals("b", enterTarget("b", ids))
+        assertEquals("a", enterTarget(null, ids))
+        assertEquals("a", enterTarget("gone", ids))
+        assertNull(enterTarget("a", emptyList()))
+    }
+
     // frozen Recent order: new on top, vanished dropped, the rest keep their place
     @Test
     fun mergeOrderKeepsShownOrder() {

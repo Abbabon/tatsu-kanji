@@ -97,7 +97,7 @@ class TatsuViewModel(app: Application, private val handle: SavedStateHandle) : A
 
     /** Enter: record the current selection, or pick (and record) the first visible result. Returns what was picked. */
     fun enter(): String? {
-        val k = selected.value ?: visibleIds().firstOrNull() ?: return null
+        val k = enterTarget(selected.value, visibleIds()) ?: return null
         pick(k)
         return k
     }
