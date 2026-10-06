@@ -3,7 +3,12 @@ package com.abbabon.kanjioffline
 import android.content.Context
 import android.content.Intent
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -80,6 +85,24 @@ class AppTest {
         scenario.recreate()
         compose.waitUntilAtLeastOneExists(hasTestTag("search"), 10_000)
         compose.onNodeWithTag("search").assertTextContains("sun")
+        scenario.close()
+    }
+
+    // Final review C1: typing key by key must not leave the best match scrolled off above the top
+    @Test
+    fun typingKeyByKeyKeepsTheBestMatchOnTop() {
+        val scenario = ActivityScenario.launch(MainActivity::class.java)
+        compose.waitUntilAtLeastOneExists(hasTestTag("search"), 10_000)
+        compose.onNodeWithTag("search").performTextInput("miz")
+        compose.waitUntilAtLeastOneExists(hasTestTag("row:自"), 10_000)
+        compose.onNodeWithTag("search").performTextInput("u")
+        compose.waitUntilAtLeastOneExists(hasTestTag("row:水"), 10_000)
+        compose.waitForIdle()
+        compose.onNodeWithTag("row:水").assertIsDisplayed()
+        val isRow = SemanticsMatcher("is a result row") {
+            it.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("row:") == true
+        }
+        compose.onAllNodes(isRow)[0].assert(hasTestTag("row:水"))
         scenario.close()
     }
 }

@@ -85,8 +85,12 @@ fun ListPane(
     val headerOffset = if (blank && recents.isNotEmpty()) 1 else 0
     val listState = rememberLazyListState()
 
-    // keep the keyboard-selected row on screen
-    LaunchedEffect(selected, rows) {
+    // a new result set starts at the top: the keyed list would otherwise stay anchored to the old first row and
+    // scroll the new best match out of view
+    LaunchedEffect(found, blank) { listState.scrollToItem(0) }
+
+    // keep the keyboard-selected row on screen (keyed on the selection only, so new results don't pull the list back down)
+    LaunchedEffect(selected) {
         val i = rows.indexOfFirst { it.k == selected }
         if (i >= 0) {
             val index = i + headerOffset
