@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -111,7 +112,7 @@ fun ListPane(
         },
     ) { padding ->
         // imePadding: edge-to-edge disables adjustResize's effect, so lift the list above the keyboard explicitly
-        Column(Modifier.padding(padding).fillMaxSize().imePadding()) {
+        Column(Modifier.padding(padding).consumeWindowInsets(padding).fillMaxSize().imePadding()) {
             SearchField(query, onQuery, onEnter, searchFocus, onSearchFocus)
             LazyColumn(state = listState, modifier = Modifier.fillMaxWidth().weight(1f)) {
                 if (blank) {
