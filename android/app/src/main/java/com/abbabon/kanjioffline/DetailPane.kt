@@ -55,7 +55,7 @@ fun DetailPane(kanji: Kanji, labels: Labels, showBack: Boolean, onBack: () -> Un
             Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState(), enabled = true)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -63,7 +63,7 @@ fun DetailPane(kanji: Kanji, labels: Labels, showBack: Boolean, onBack: () -> Un
                 Text(
                     kanji.k,
                     fontSize = 96.sp,
-                    style = LocalTextStyle.current.ja(),
+                    style = LocalTextStyle.current.ja().copy(lineHeight = 112.sp),
                     modifier = Modifier.testTag("detail-kanji"),
                 )
             }
