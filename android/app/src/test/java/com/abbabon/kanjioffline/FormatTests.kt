@@ -9,7 +9,7 @@ import org.junit.Test
 
 class FormatTests {
     private val labels = Labels(
-        strokes = "%d strokes",
+        strokes = { n -> if (n == 1) "$n stroke" else "$n strokes" },
         grade = "grade %d",
         joyo = "jōyō (secondary)",
         jinmei = "jinmeiyō",
@@ -56,6 +56,8 @@ class FormatTests {
         assertEquals("4 strokes · grade 1 · JLPT 4 · #223 freq", metaLine(water, labels))
         val rare = Kanji("鬱", listOf("gloom"), emptyList(), emptyList(), emptyList(), 29, 0, 0, 0)
         assertEquals("29 strokes", metaLine(rare, labels))
+        val one = Kanji("一", listOf("one"), listOf("イチ"), listOf("ひと"), emptyList(), 1, 1, 4, 2)
+        assertEquals("1 stroke · grade 1 · JLPT 4 · #2 freq", metaLine(one, labels))
     }
 
     // Review Focus 3: ASCII digits whatever the device language

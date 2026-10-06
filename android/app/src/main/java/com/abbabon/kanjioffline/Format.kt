@@ -21,7 +21,7 @@ fun readingParts(reading: String): ReadingParts {
 
 /** Label text from strings.xml, passed in so this file stays free of Android. */
 class Labels(
-    val strokes: String,  // "%d strokes"
+    val strokes: (Int) -> String,  // "1 stroke" / "4 strokes", a plural resource
     val grade: String,    // "grade %d"
     val joyo: String,     // "jōyō (secondary)"
     val jinmei: String,   // "jinmeiyō"
@@ -36,7 +36,7 @@ fun gradeLabel(g: Int, labels: Labels): String =
     if (g <= 6) fmt(labels.grade, g) else if (g == 8) labels.joyo else labels.jinmei
 
 fun metaLine(e: Kanji, labels: Labels): String {
-    val parts = mutableListOf(fmt(labels.strokes, e.s))
+    val parts = mutableListOf(labels.strokes(e.s))
     if (e.g > 0) parts.add(gradeLabel(e.g, labels))
     if (e.j > 0) parts.add(fmt(labels.jlpt, e.j))
     if (e.f > 0) parts.add(fmt(labels.freq, e.f))

@@ -41,6 +41,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.utf16CodePoint
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.launch
 
@@ -68,8 +69,9 @@ fun TatsuScreen(vm: TatsuViewModel) {
     var rootFocused by remember { mutableStateOf(false) }   // any node under the scaffold has focus
     val twoPane = navigator.scaffoldDirective.maxHorizontalPartitions > 1
 
+    val res = LocalContext.current.resources
     val labels = Labels(
-        strokes = stringResource(R.string.meta_strokes),
+        strokes = { n -> res.getQuantityString(R.plurals.meta_strokes, n, n.toString()) },  // %s: ASCII digits in every locale
         grade = stringResource(R.string.meta_grade),
         joyo = stringResource(R.string.meta_joyo),
         jinmei = stringResource(R.string.meta_jinmei),

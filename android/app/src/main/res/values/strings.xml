@@ -23,7 +23,10 @@
     <string name="on_label">ON</string>
     <string name="kun_label">KUN</string>
     <string name="names_label">NAMES</string>
-    <string name="meta_strokes">%1$d strokes</string>
+    <plurals name="meta_strokes">
+        <item quantity="one">%1$s stroke</item>
+        <item quantity="other">%1$s strokes</item>
+    </plurals>
     <string name="meta_grade">grade %1$d</string>
     <string name="meta_joyo">jōyō (secondary)</string>
     <string name="meta_jinmei">jinmeiyō</string>
