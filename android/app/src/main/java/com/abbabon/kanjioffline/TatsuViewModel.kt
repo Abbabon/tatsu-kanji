@@ -6,9 +6,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -64,13 +65,13 @@ class TatsuViewModel(app: Application, private val handle: SavedStateHandle) : A
 
     fun kanji(k: String): Kanji? = searcher.value?.kanji(k)
 
-    /** One event per text-selection hand-off (Task 11). No replay, so a rotation or a new collector never sees an old one. */
-    private val _handOffs = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val handOffs: SharedFlow<Unit> = _handOffs
+    /** One event per text-selection hand-off (Task 11). A conflated channel buffers an event sent before the UI collects (cold start) and delivers it once. */
+    private val handOffChannel = Channel<Unit>(Channel.CONFLATED)
+    val handOffs: Flow<Unit> = handOffChannel.receiveAsFlow()
 
     fun applyHandOff(text: String) {
         setQuery(text)
-        _handOffs.tryEmit(Unit)
+        handOffChannel.trySend(Unit)
     }
 
     fun setQuery(q: String) {
