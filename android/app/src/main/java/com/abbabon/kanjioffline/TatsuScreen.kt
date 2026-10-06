@@ -11,6 +11,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
+import androidx.compose.material3.adaptive.layout.PaneAdaptedValue
 import androidx.compose.material3.adaptive.navigation.NavigableListDetailPaneScaffold
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
@@ -21,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -94,8 +96,15 @@ fun TatsuScreen(vm: TatsuViewModel) {
         }
     }
 
-    // launch: focus the search field (it is not composed if a restored detail hides the list)
-    LaunchedEffect(Unit) { runCatching { searchFocus.requestFocus() } }
+    // launch, and whenever the list pane becomes visible again (back from detail on a phone): focus the search field.
+    // While the list is hidden its field is disposed, so the flag is reset (onFocusChanged does not fire on disposal).
+    val listVisible = navigator.scaffoldValue[ListDetailPaneScaffoldRole.List] != PaneAdaptedValue.Hidden
+    LaunchedEffect(listVisible) {
+        if (listVisible) {
+            withFrameNanos { }   // let the pane compose first
+            runCatching { searchFocus.requestFocus() }
+        } else searchFocused = false
+    }
 
     Scaffold(
         modifier = Modifier

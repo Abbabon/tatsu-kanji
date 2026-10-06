@@ -52,9 +52,11 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -145,9 +147,12 @@ private fun SearchField(
 ) {
     // A plain TextField styled as a search bar: SearchBarDefaults.InputField has no keyboardOptions,
     // and the spec needs autocorrect and capitalisation off with a Search IME action.
+    // keep the caret at the end when the query changes from outside (restore, type-anywhere, Clear)
+    var tfv by remember { mutableStateOf(TextFieldValue(query, TextRange(query.length))) }
+    if (tfv.text != query) tfv = TextFieldValue(query, TextRange(query.length))
     TextField(
-        value = query,
-        onValueChange = onQuery,
+        value = tfv,
+        onValueChange = { tfv = it; onQuery(it.text) },
         singleLine = true,
         placeholder = { Text(stringResource(R.string.search_hint)) },
         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
