@@ -26,7 +26,7 @@
 - English only. All UI strings in `strings.xml`, including the grade and section labels that iOS hardcodes.
 - Search: same ranking, same typo tolerance, limit 60, runs on every keystroke off the main thread, a newer query cancels the older one.
 - Recent is recorded on explicit picks only: tap, Enter, Copy. Arrow-key movement does not record.
-- Dependencies are only: Compose BOM, `material3`, `material3-adaptive` (plus its navigation artifact), `activity-compose`, `lifecycle-viewmodel-compose`, `datastore-preferences`, `kotlinx-serialization-json`; tests add JUnit 4 and `compose-ui-test` (plus `androidx.test.ext:junit` as the instrumented runner). Versions live in a Gradle version catalog.
+- Dependencies are only: Compose BOM, `material3`, `material3-adaptive` (plus its navigation artifact), `activity-compose`, `lifecycle-viewmodel-compose`, `material-icons-core` (BOM-managed, for the search/info/back/copy icons), `datastore-preferences`, `kotlinx-serialization-json`; tests add JUnit 4 and `compose-ui-test` (plus `androidx.test.ext:junit` as the instrumented runner). Versions live in a Gradle version catalog.
 - All text showing kanji or kana sets `LocaleList("ja")`. Text sizes are in `sp`.
 - Release builds use R8 minify and resource shrinking.
 - `Search.kt` and `Format.kt` import nothing from `android.*` / `androidx.*`.
@@ -75,23 +75,25 @@ Inputs the spec implies but no obvious test covers. Each line gets a test in the
 | `gradlew`, `gradlew.bat`, `gradle/wrapper/*` | Gradle wrapper | 2 |
 | `app/build.gradle.kts` | Module config, kanji.json copy task, dependencies, release config | 2, 14 |
 | `app/proguard-rules.pro` | R8 rules (empty, comment only) | 2 |
-| `app/src/main/AndroidManifest.xml` | Manifest | 2, 11 |
-| `app/src/main/res/values/strings.xml`, `values/themes.xml`, `values-night/themes.xml` | Strings, window theme | 2, 7 |
+| `app/src/main/AndroidManifest.xml` | Manifest | 2, 11, 13 |
+| `app/src/main/res/values/strings.xml` | Strings | 2, 7 |
+| `app/src/main/res/values/themes.xml`, `values-night/themes.xml` | Window theme | 2 |
 | `app/src/main/res/drawable/ic_launcher_*.xml`, `mipmap-anydpi-v26/ic_launcher.xml` | Adaptive + themed icon | 13 |
 | `app/src/main/java/com/abbabon/kanjioffline/Kanji.kt` | Model, JSON parse, asset load | 3 |
 | `.../Search.kt` | `toHira`, `romaji`, `Searcher` (pure) | 4 |
 | `.../Format.kt` | `readingParts`, `Labels`, `gradeLabel`, `metaLine`, `stepSelection`, `isTypable`, `mergeOrder` (pure) | 5 |
 | `.../Recents.kt` | DataStore wrapper | 6 |
 | `.../Theme.kt` | Dynamic colour with static fallback, `ja()` text style | 7 |
-| `.../TatsuViewModel.kt` | State holder | 7 |
+| `.../TatsuViewModel.kt` | State holder (incl. the hand-off event) | 7 |
 | `.../DetailPane.kt` | Detail view | 8 |
 | `.../AboutSheet.kt` | About bottom sheet | 8 |
 | `.../ListPane.kt` | Search field, rows, recents, empty states | 9 |
-| `.../TatsuScreen.kt` | Adaptive scaffold, copy, key handling (small addition to the spec's file list: the glue between the panes) | 9, 10 |
+| `.../TatsuScreen.kt` | Adaptive scaffold, copy, key handling, text-selection hand-off and back (small addition to the spec's file list: the glue between the panes) | 9, 10, 11 |
 | `.../MainActivity.kt` | Edge-to-edge, theme, `EXTRA_PROCESS_TEXT` | 9, 11 |
 | `app/src/test/java/com/abbabon/kanjioffline/{TestData,DataTests,SearchTests,FormatTests,RecentsTest}.kt` | JVM tests | 3-6 |
 | `app/src/androidTest/java/com/abbabon/kanjioffline/AppTest.kt` | Instrumented Compose test | 12 |
-| `CLAUDE.md`, `README.md`, `PRIVACY.md`, `.gitignore` (repo root) | Docs and ignores | 2, 15 |
+| `CLAUDE.md`, `README.md`, `PRIVACY.md` (repo root) | Docs | 15 |
+| `.gitignore` (repo root) | Ignores | 2 |
 | `docs/playstore.md`, `docs/playstore/screenshots/*`, `docs/playstore/feature-graphic.png`, `docs/playstore/icon-512.png` | Store listing | 15, 16 |
 
 ## Conventions used below
@@ -102,11 +104,12 @@ Run every shell block from the repo root `/Users/amit/repos/kanji-offline-androi
 export JAVA_HOME=$(/usr/libexec/java_home -v 17)
 export ANDROID_HOME=$HOME/Library/Android/sdk
 export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH
+export SCRATCH=/private/tmp/claude-502/tatsu-android-scratch; mkdir -p "$SCRATCH"
 ```
 
 - **TEST** = `cd android && ./gradlew test` (JVM unit tests, no emulator).
 - **BUILD** = `cd android && ./gradlew assembleDebug`.
-- If the executor can read images, "look at the screenshot" means: `adb exec-out screencap -p > "$SCRATCH/x.png"` then read the PNG. `SCRATCH` is any scratch directory outside the repo (`SCRATCH=$(mktemp -d)`).
+- If the executor can read images, "look at the screenshot" means: `adb exec-out screencap -p > "$SCRATCH/x.png"` then read the PNG. `SCRATCH` is set by `ENV` to a fixed scratch directory outside the repo; do not re-create it with `mktemp -d` (that gives a new directory per call and loses files such as `$FONT`).
 - The compile-checked Kotlin below is written against the pinned versions but could not be compiled when this plan was written. If a Compose or adaptive API name or signature is rejected, fix it against the compiler error (and the library's source/docs) while keeping the behaviour described. Do not change behaviour to dodge a compile error.
 
 ## Execution and git
@@ -204,7 +207,6 @@ No commit in this step. Report the JDK path, installed SDK packages, the AVD nam
 
 ```bash
 # ENV
-SCRATCH=$(mktemp -d)
 curl -fsSL -o "$SCRATCH/gradle.zip" https://services.gradle.org/distributions/gradle-9.8.0-bin.zip
 SUM=$(curl -fsSL https://services.gradle.org/distributions/gradle-9.8.0-bin.zip.sha256)
 echo "$SUM  $SCRATCH/gradle.zip" | shasum -a 256 -c -
@@ -482,7 +484,7 @@ adb shell am start -n com.abbabon.kanjioffline/.MainActivity
 adb exec-out screencap -p > "$SCRATCH/launch.png"
 ```
 
-Expected: `BUILD SUCCESSFUL` (the `test` task reports "NO-SOURCE"), the `unzip -l` line shows `assets/kanji.json` of about 1.3 MB, install prints `Success`, and the screenshot shows the word "Tatsu" in the top-left under the status bar. First build downloads Gradle plugins and dependencies and can take several minutes. Also confirm there is no network permission: `aapt2`-free check is `unzip -p app/build/outputs/apk/debug/app-debug.apk AndroidManifest.xml | strings | grep -c INTERNET` which must print `0`.
+Expected: `BUILD SUCCESSFUL` (the `test` task reports "NO-SOURCE"), the `unzip -l` line shows `assets/kanji.json` of about 1.3 MB, install prints `Success`, and the screenshot shows the word "Tatsu" in the top-left under the status bar. First build downloads Gradle plugins and dependencies and can take several minutes. Also confirm there is no network permission: `$ANDROID_HOME/build-tools/36.0.0/aapt2 dump permissions app/build/outputs/apk/debug/app-debug.apk | grep -c INTERNET || true` must print `0` (the compiled manifest is binary XML, so do not use `strings`; `aapt2 dump permissions` should list `package: com.abbabon.kanjioffline` and no INTERNET line).
 
 - [ ] **Step 6: Commit**
 
@@ -761,7 +763,9 @@ class SearchTests {
     fun veryLongQueryReturns() {
         val start = System.nanoTime()
         searcher.search("a".repeat(5_000))
-        searcher.search("mizu".repeat(1_250))
+        val r = searcher.search("mizu".repeat(1_250))
+        assertTrue(r.size <= 60)
+        assertTrue(searcher.search("a".repeat(5_000)).size <= 60)
         assertTrue((System.nanoTime() - start) / 1_000_000 < 5_000)
     }
 }
@@ -1015,7 +1019,7 @@ class FormatTests {
         assertFalse(isTypable("\r"))
         assertFalse(isTypable("\u007F"))
         assertFalse(isTypable("\u0000"))     // what a non-character key reports
-        assertFalse(isTypable(""))     // private-use key codes
+        assertFalse(isTypable("\uF700"))     // private-use key codes (an escape, never a literal)
     }
 
     @Test
@@ -1350,7 +1354,8 @@ No UI yet. Deliverable: everything the panes need compiles, strings are in `stri
   - `fun TextStyle.ja(): TextStyle` (sets `LocaleList("ja")`)
   - `data class Found(val query: String, val kanji: List<Kanji>)`
   - `class TatsuViewModel(app: Application, handle: SavedStateHandle) : AndroidViewModel(app)` with:
-    - state: `query: StateFlow<String>`, `ready: StateFlow<Boolean>`, `found: StateFlow<Found>`, `selected: StateFlow<String?>`, `recentOrder: StateFlow<List<String>>`
+    - state: `query: StateFlow<String>`, `ready: StateFlow<Boolean>`, `found: StateFlow<Found>`, `selected: StateFlow<String?>`, `recentOrder: StateFlow<List<String>>`, `handOffs: SharedFlow<Unit>` (one event per text-selection hand-off, no replay)
+    - `fun applyHandOff(text: String)` (sets the query and emits one `handOffs` event)
     - `fun kanji(k: String): Kanji?`
     - `fun setQuery(q: String)`, `fun pick(k: String)`, `fun touch(k: String)`, `fun enter(): String?`, `fun step(delta: Int)`, `fun remove(k: String)`, `fun clearRecents()`, `fun visibleIds(): List<String>`
 
@@ -1474,11 +1479,14 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
@@ -1501,8 +1509,8 @@ class TatsuViewModel(app: Application, private val handle: SavedStateHandle) : A
 
     /** Every new query cancels the search still running for the previous one. */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val found: StateFlow<Found> = combine(query, searcher) { q, s -> q to s }
-        .mapLatest { (q, s) -> Found(q, s?.search(q).orEmpty()) }
+    val found: StateFlow<Found> = combine(query, searcher.filterNotNull()) { q, s -> q to s }   // no results (and no "No matches.") until the searcher is loaded
+        .mapLatest { (q, s) -> Found(q, s.search(q)) }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.Eagerly, Found("", emptyList()))
 
@@ -1528,6 +1536,15 @@ class TatsuViewModel(app: Application, private val handle: SavedStateHandle) : A
     }
 
     fun kanji(k: String): Kanji? = searcher.value?.kanji(k)
+
+    /** One event per text-selection hand-off (Task 11). No replay, so a rotation or a new collector never sees an old one. */
+    private val _handOffs = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val handOffs: SharedFlow<Unit> = _handOffs
+
+    fun applyHandOff(text: String) {
+        setQuery(text)
+        _handOffs.tryEmit(Unit)
+    }
 
     fun setQuery(q: String) {
         val becameBlank = q.isBlank() && query.value.isNotBlank()
@@ -1755,6 +1772,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -1791,7 +1809,7 @@ fun AboutSheet(onDismiss: () -> Unit) {
 
             Text(stringResource(R.string.about_app_title), style = MaterialTheme.typography.titleSmall)
             Text(stringResource(R.string.about_mit))
-            Text(stringResource(R.string.about_font_credit), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.about_font_credit), style = LocalTextStyle.current.ja(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             LinkText(stringResource(R.string.link_source), "https://github.com/Abbabon/tatsu-kanji")
         }
     }
@@ -1847,6 +1865,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -1942,7 +1961,8 @@ fun ListPane(
             )
         },
     ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
+        // imePadding: edge-to-edge disables adjustResize's effect, so lift the list above the keyboard explicitly
+        Column(Modifier.padding(padding).fillMaxSize().imePadding()) {
             SearchField(query, onQuery, onEnter, searchFocus, onSearchFocus)
             LazyColumn(state = listState, modifier = Modifier.fillMaxWidth().weight(1f)) {
                 if (blank) {
@@ -2132,8 +2152,11 @@ fun TatsuScreen(vm: TatsuViewModel) {
     val ready by vm.ready.collectAsState()
     val selected by vm.selected.collectAsState()
     val recentOrder by vm.recentOrder.collectAsState()
-    // recents whose kanji vanished after a data update are skipped
-    val recents = recentOrder.mapNotNull { vm.kanji(it) }
+    // `ready` is read here (outer scope) and keys both remembers: the searcher loads after the DataStore emits,
+    // and `vm.kanji` is not observable, so without it Recent and a restored detail would stay empty until the next change.
+    // Recents whose kanji vanished after a data update are skipped.
+    val recents = remember(recentOrder, ready) { recentOrder.mapNotNull { vm.kanji(it) } }
+    val selectedKanji = remember(selected, ready) { selected?.let { vm.kanji(it) } }
 
     val navigator = rememberListDetailPaneScaffoldNavigator<String>()
     val scope = rememberCoroutineScope()
@@ -2212,7 +2235,7 @@ fun TatsuScreen(vm: TatsuViewModel) {
             },
             detailPane = {
                 AnimatedPane {
-                    val e = selected?.let { vm.kanji(it) }
+                    val e = selectedKanji
                     if (e != null) {
                         DetailPane(
                             kanji = e,
@@ -2270,7 +2293,7 @@ adb shell input text water
 sleep 2; adb exec-out screencap -p > "$SCRATCH/2-water.png"
 ```
 
-Look at the screenshots. Expected: (1) title "Tatsu" with the info icon, a rounded search field with the keyboard up, and the hint "Type English, hiragana, ..." (no recents yet). (2) rows with 水 first, the kanji large on the left, meanings on up to two lines and readings below. Then tap the first row. Find its coordinates from the screenshot (the phone is 1080x2400, so a row near the top of the list is around y=500) and run `adb shell input tap 540 500`; screenshot again. Expected: the detail page with a big 水, the Copy text button top right, a back arrow top left, meanings, ON and KUN tiles with kana over kanji over romaji, meta line "4 strokes · grade 1 · JLPT 4 · #... freq". Press back with `adb shell input keyevent KEYCODE_BACK`: list returns. Clear the field with the x: the "Recent" header with Clear and 水 below it appears. Tap the info icon: the About sheet opens. If text looks Chinese-style instead of Japanese, the `ja()` locale is not applied somewhere; fix it.
+Look at the screenshots. Expected: (1) title "Tatsu" with the info icon, a rounded search field with the keyboard up, and the hint "Type English, hiragana, ..." (no recents yet). (2) rows with 水 first, the kanji large on the left, meanings on up to two lines and readings below. Then tap the first row. Find its coordinates from the screenshot (the phone is 1080x2400, so a row near the top of the list is around y=500) and run `adb shell input tap 540 500`; screenshot again. Expected: the detail page with a big 水, the Copy text button top right, a back arrow top left, meanings, ON and KUN tiles with kana over kanji over romaji, meta line "4 strokes · grade 1 · JLPT 4 · #... freq". Press back with `adb shell input keyevent KEYCODE_BACK`: list returns. Clear the field with the x: the "Recent" header with Clear and 水 below it appears. Tap the info icon: the About sheet opens. If text looks Chinese-style instead of Japanese, the `ja()` locale is not applied somewhere; fix it. With the keyboard up and the list scrolled to the end, the last row must be fully visible above the keyboard (`imePadding`); if the keyboard covers rows, fix the insets before moving on.
 
 - [ ] **Step 5: Commit**
 
@@ -2298,6 +2321,7 @@ In `TatsuScreen`, add next to `showAbout`:
 
 ```kotlin
     var searchFocused by remember { mutableStateOf(false) }
+    var rootFocused by remember { mutableStateOf(false) }   // any node under the scaffold has focus
 ```
 
 and change the `ListPane` argument `onSearchFocus = {}` to `onSearchFocus = { searchFocused = it }`.
@@ -2312,15 +2336,18 @@ private fun String.dropLastCodePoint(): String =
     if (isEmpty()) this else substring(0, offsetByCodePoints(length, -1))
 ```
 
-Add imports: `androidx.compose.ui.input.key.Key`, `KeyEventType`, `isCtrlPressed`, `isMetaPressed`, `isAltPressed`, `key`, `onPreviewKeyEvent`, `type`, `utf16CodePoint`.
+Add imports: `androidx.compose.ui.focus.onFocusChanged`, `androidx.compose.ui.input.key.Key`, `KeyEventType`, `isCtrlPressed`, `isMetaPressed`, `isAltPressed`, `key`, `onPreviewKeyEvent`, `type`, `utf16CodePoint`.
 
 Change the root `Scaffold` modifier from `Modifier.fillMaxSize()` to:
 
 ```kotlin
         modifier = Modifier
             .fillMaxSize()
+            .onFocusChanged { rootFocused = it.hasFocus }
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                // a focused button (Copy, Clear, back, a row) must still get its own Enter and Space
+                val otherFocused = rootFocused && !searchFocused
                 when {
                     e.isCtrlPressed && e.key == Key.F -> {
                         runCatching { searchFocus.requestFocus() }
@@ -2329,7 +2356,8 @@ Change the root `Scaffold` modifier from `Modifier.fillMaxSize()` to:
                     e.isCtrlPressed || e.isMetaPressed || e.isAltPressed -> false
                     e.key == Key.DirectionDown -> { vm.step(1); true }
                     e.key == Key.DirectionUp -> { vm.step(-1); true }
-                    e.key == Key.Enter || e.key == Key.NumPadEnter -> { enter(); true }
+                    (e.key == Key.Enter || e.key == Key.NumPadEnter) && !otherFocused -> { enter(); true }
+                    otherFocused && (e.key == Key.Enter || e.key == Key.NumPadEnter || e.key == Key.Spacebar) -> false
                     e.key == Key.Backspace ->
                         if (!searchFocused && query.isNotEmpty()) {
                             vm.setQuery(query.dropLastCodePoint())
@@ -2350,7 +2378,7 @@ Change the root `Scaffold` modifier from `Modifier.fillMaxSize()` to:
             },
 ```
 
-Enter is consumed here for both the search field and everywhere else, so the field's own IME action does not also fire; the soft keyboard's Search button still calls `onEnter` through `keyboardActions`.
+Enter is consumed here when the search field or nothing has focus (so the field's own IME action does not also fire); when a button or row has focus, Enter and Space pass through to it; the soft keyboard's Search button still calls `onEnter` through `keyboardActions`.
 
 - [ ] **Step 3: Verify on the 10-inch tablet emulator (two panes)**
 
@@ -2373,6 +2401,8 @@ adb shell input keycombination 113 34       # Ctrl+F
 
 Expected on the tablet screenshots: two panes side by side (list left, detail right). After the first Down the first row is highlighted and its kanji shows in the right pane; after the second Down the second row. Arrow movement alone must not add to Recent: `adb shell pm clear` first, step with Down twice, clear the query: the hint text shows and there is no Recent header. After Enter, that kanji appears in Recent. If `input keycombination` is unavailable, skip Ctrl+F and leave it to the manual checklist.
 
+**Verify type-anywhere explicitly** (this is the risky part): tap a blank area of the detail pane so the search field loses focus, then `adb shell input text a` and screenshot; the search field must now contain `a` and have focus. `onPreviewKeyEvent` on the `Scaffold` only fires when a node under it has focus; if the key does nothing when no node is focused, move the whole handler (same logic, same `searchFocused`/`rootFocused` state) to `MainActivity.dispatchKeyEvent` (override, forward to the screen's handler, fall back to `super`), and keep the verification. Also check a focused button keeps its own Enter: `adb shell input keyevent KEYCODE_TAB` until Copy (or Clear) is focused, press `KEYCODE_ENTER`, and it must activate (Copy copies, no navigation change).
+
 - [ ] **Step 4: Run the unit tests and commit**
 
 ```bash
@@ -2392,7 +2422,7 @@ git commit -m "Android: hardware keyboard (arrows, Enter, type anywhere, Ctrl+F)
 - Modify: `android/app/src/main/java/com/abbabon/kanjioffline/TatsuScreen.kt`
 
 **Interfaces:**
-- Consumes: `vm.setQuery`.
+- Consumes: `vm.applyHandOff`, `vm.handOffs` (Task 7).
 - Produces: `ACTION_PROCESS_TEXT` entry labelled "Tatsu"; predictive-back opt-in; the query set from a selection on first launch and on a new intent only (never again after a rotation).
 
 - [ ] **Step 1: Manifest**
@@ -2442,19 +2472,22 @@ class MainActivity : ComponentActivity() {
 
     private fun applyProcessText(intent: Intent?) {
         if (intent?.action != Intent.ACTION_PROCESS_TEXT) return
-        intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()?.let(vm::setQuery)
+        intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()?.let(vm::applyHandOff)
     }
 }
 ```
 
 - [ ] **Step 3: Return to the list when a hand-off arrives while a phone shows a detail**
 
-In `TatsuScreen`, add after the `LaunchedEffect(Unit)` line (add imports `androidx.compose.material3.adaptive.layout.PaneAdaptedValue`):
+In `TatsuScreen`, add after the `LaunchedEffect(Unit)` line (add import `androidx.compose.material3.adaptive.layout.PaneAdaptedValue`):
 
 ```kotlin
-    // a new query from outside (text selection) while the phone shows a detail: go back to the list
-    LaunchedEffect(query) {
-        if (navigator.scaffoldValue[ListDetailPaneScaffoldRole.List] == PaneAdaptedValue.Hidden) navigator.navigateBack()
+    // a text-selection hand-off while the phone shows a detail: go back to the list. Keyed on the VM's one-shot
+    // event, never on `query`: a query effect would also run after rotation/restore and pop the detail every time.
+    LaunchedEffect(Unit) {
+        vm.handOffs.collect {
+            if (navigator.scaffoldValue[ListDetailPaneScaffoldRole.List] == PaneAdaptedValue.Hidden) navigator.navigateBack()
+        }
     }
 ```
 
@@ -2470,7 +2503,7 @@ sleep 2; adb exec-out screencap -p > "$SCRATCH/pt.png"
 adb shell cmd package query-activities --brief -a android.intent.action.PROCESS_TEXT -t text/plain | grep abbabon
 ```
 
-Expected: the screenshot shows 水 in the search field and one result row 水; the second command prints `com.abbabon.kanjioffline/.MainActivity`. To see the real menu entry, open any app with selectable text on the emulator (for example Chrome, or Settings search), long-press a word, open the three-dot overflow of the selection toolbar and look for "Tatsu": this is on the manual checklist at the end. Predictive back: confirm the manifest flag took effect with `adb shell dumpsys package com.abbabon.kanjioffline | grep -i -E "enableOnBackInvokedCallback|ON_BACK_INVOKED"` (the grep may print nothing on some builds; the visual check is the manual checklist item).
+Expected: the screenshot shows 水 in the search field and one result row 水; the second command prints `com.abbabon.kanjioffline/.MainActivity`. To see the real menu entry, open any app with selectable text on the emulator (for example Chrome, or Settings search), long-press a word, open the three-dot overflow of the selection toolbar and look for "Tatsu": this is on the manual checklist at the end. Rotation must not pop a phone detail: open a result, then `adb shell settings put system accelerometer_rotation 0; adb shell settings put system user_rotation 1; sleep 2; adb exec-out screencap -p > "$SCRATCH/rot.png"`; the detail must still be showing (then `user_rotation 0`). Predictive back: confirm the manifest flag took effect with `adb shell dumpsys package com.abbabon.kanjioffline | grep -i -E "enableOnBackInvokedCallback|ON_BACK_INVOKED"` (the grep may print nothing on some builds; the visual check is the manual checklist item).
 
 - [ ] **Step 5: Commit**
 
@@ -2628,15 +2661,15 @@ The icon is drawn from `logo.svg`: dark gradient background, the red diagonal cu
 
 - [ ] **Step 1: Generate the glyph path and write the drawables**
 
-Everything below happens in a scratch directory outside the repo (`SCRATCH=$(mktemp -d)`); the downloaded font is never committed. Download Noto Serif JP from an official source: the Google Fonts repository (`https://github.com/google/fonts/raw/main/ofl/notoserifjp/NotoSerifJP%5Bwght%5D.ttf`, a variable font; the same directory holds `OFL.txt`) or, if that URL has moved, the `notofonts` / `googlefonts` GitHub release or `fonts.google.com/noto/specimen/Noto+Serif+JP` download. Check that the file is a real font (`file` says TrueType, several MB) and read the licence text next to it to confirm SIL OFL 1.1. Then pin the weight with fontTools (the old logo used a W6 Mincho, so use wght 600) and extract the outline:
+Everything below happens in a scratch directory outside the repo (`$SCRATCH`, set by `ENV`); the downloaded font is never committed. Download Noto Serif JP from an official source: the Google Fonts repository (`https://github.com/google/fonts/raw/main/ofl/notoserifjp/NotoSerifJP%5Bwght%5D.ttf`, a variable font; the same directory holds `OFL.txt`) or, if that URL has moved, the `notofonts` / `googlefonts` GitHub release or `fonts.google.com/noto/specimen/Noto+Serif+JP` download. Check that the file is a real font (`file` says TrueType, several MB) and read the licence text next to it to confirm SIL OFL 1.1. Then pin the weight with fontTools (`logo.svg` uses `font-weight` 700, so use wght 700) and extract the outline:
 
 ```bash
-SCRATCH=$(mktemp -d)
+# ENV
 python3 -m venv "$SCRATCH/venv" && "$SCRATCH/venv/bin/pip" install -q fonttools
 curl -fL -o "$SCRATCH/NotoSerifJP-VF.ttf" "https://github.com/google/fonts/raw/main/ofl/notoserifjp/NotoSerifJP%5Bwght%5D.ttf"
 curl -fL -o "$SCRATCH/OFL.txt" "https://github.com/google/fonts/raw/main/ofl/notoserifjp/OFL.txt"
 head -5 "$SCRATCH/OFL.txt"
-"$SCRATCH/venv/bin/fonttools" varLib.instancer "$SCRATCH/NotoSerifJP-VF.ttf" wght=600 -o "$SCRATCH/NotoSerifJP-600.ttf"
+"$SCRATCH/venv/bin/fonttools" varLib.instancer "$SCRATCH/NotoSerifJP-VF.ttf" wght=700 -o "$SCRATCH/NotoSerifJP-700.ttf"
 cat > "$SCRATCH/icon.py" <<'PY'
 import sys
 from fontTools.ttLib import TTFont
@@ -2684,10 +2717,10 @@ open(f"{out}/ic_launcher_background.xml", "w").write(
     '        </aapt:attr>\n    </path>\n</vector>\n')
 PY
 mkdir -p android/app/src/main/res/drawable android/app/src/main/res/mipmap-anydpi-v26
-"$SCRATCH/venv/bin/python" -I "$SCRATCH/icon.py" android/app/src/main/res/drawable "$SCRATCH/NotoSerifJP-600.ttf"
+"$SCRATCH/venv/bin/python" -I "$SCRATCH/icon.py" android/app/src/main/res/drawable "$SCRATCH/NotoSerifJP-700.ttf"
 ```
 
-Keep `$SCRATCH/NotoSerifJP-600.ttf` for Task 16 (if the shell is gone, repeat the download and instancer commands above).
+Keep `$SCRATCH/NotoSerifJP-700.ttf` for Task 16 (if the shell is gone, repeat the download and instancer commands above).
 
 The monochrome layer is the cut and glyph in one flat colour (Android tints it); the 108dp canvas keeps everything inside the 66dp safe zone (the 512 art is scaled by 66/512 and centred).
 
@@ -2743,7 +2776,8 @@ git commit -m "Android: adaptive and themed launcher icon drawn from logo.svg"
 ```bash
 mkdir -p ~/Keys/tatsu && chmod 700 ~/Keys ~/Keys/tatsu
 PW=$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)
-JAVA_HOME=$(/usr/libexec/java_home -v 17) "$JAVA_HOME/bin/keytool" -genkeypair -v -keystore ~/Keys/tatsu/upload.jks \
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+"$JAVA_HOME/bin/keytool" -genkeypair -v -keystore ~/Keys/tatsu/upload.jks \
   -alias upload -keyalg RSA -keysize 2048 -validity 10000 -storepass "$PW" -keypass "$PW" \
   -dname "CN=Tatsu upload key, O=Abbabon, C=IL"
 umask 077
@@ -2755,7 +2789,7 @@ TATSU_UPLOAD_KEY_PASSWORD=$PW
 EOF
 ```
 
-Replace `$JAVA_HOME` by the path from `/usr/libexec/java_home -v 17` if the variable is not exported in that shell. Do not echo the password anywhere. Tell the user in the report: the keystore and `~/.gradle/gradle.properties` hold the only copy of the upload key; back both up (a password manager works). Losing the upload key is recoverable through Play Console support (Play App Signing holds the real signing key), but it is slow.
+`JAVA_HOME` is exported on the first line, so the keytool path expands correctly. Do not echo the password anywhere. Tell the user in the report: the keystore and `~/.gradle/gradle.properties` hold the only copy of the upload key; back both up (a password manager works). Losing the upload key is recoverable through Play Console support (Play App Signing holds the real signing key), but it is slow.
 
 - [ ] **Step 2: Sign the release build when the properties exist**
 
@@ -2787,7 +2821,7 @@ and inside `buildTypes { release { ... } }` add:
 # ENV
 cd android && ./gradlew clean bundleRelease assembleRelease lintRelease
 unzip -l app/build/outputs/bundle/release/app-release.aab | grep -E "kanji.json|AndroidManifest"
-unzip -p app/build/outputs/apk/release/app-release.apk AndroidManifest.xml | strings | grep -c INTERNET
+$ANDROID_HOME/build-tools/36.0.0/aapt2 dump permissions app/build/outputs/apk/release/app-release.apk | grep -c INTERNET || true   # must print 0
 $ANDROID_HOME/build-tools/36.0.0/apksigner verify --verbose app/build/outputs/apk/release/app-release.apk | head -5
 ```
 
@@ -2836,6 +2870,8 @@ Work from `android/`. The Android SDK is in `~/Library/Android/sdk`; the build n
 
 ```bash
 export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+export ANDROID_HOME=$HOME/Library/Android/sdk
+export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH
 cd android && ./gradlew test                     # JVM unit tests, no emulator needed
 ```
 
@@ -2870,7 +2906,7 @@ Also replace "Can't type a kanji on iPhone? Add the Chinese – Handwriting keyb
 - [ ] **Step 3: `PRIVACY.md`**: replace "It is stored on your device with SwiftData, is never synced or uploaded, and is visible only to the app." with "It is stored on your device (SwiftData on iPhone, iPad and Mac; Jetpack DataStore on Android), is never synced or uploaded, and is visible only to the app. On Android the recent list never leaves the device and is not included in Google backups (the app sets `allowBackup=\"false\"`)." and replace the deletion paragraph with:
 
 ```markdown
-To delete it, right-click (Mac) or long-press (iPhone, iPad and Android) an item and choose Remove from History, or use Clear in the Recent list. Deleting the app removes all of its data; on Android you can also clear it in Settings › Apps › Tatsu › Storage › Clear data.
+To delete it, right-click (Mac) or long-press (iPhone, iPad and Android) an item and choose Remove from history, or use Clear in the Recent list. Deleting the app removes all of its data; on Android you can also clear it in Settings › Apps › Tatsu › Storage › Clear data.
 ```
 
 Update "Effective date" to `2026-10-06`. The Android app declares no `INTERNET` permission; add that fact to the "Network and third parties" paragraph: "On Android the app does not even request the Internet permission."
@@ -2988,13 +3024,35 @@ Play limits: PNG or JPEG, each side 320-3840 px, the long side at most 2× the s
 
 ```bash
 mkdir -p docs/playstore/screenshots
-sips -s format png -z 512 512 Tatsu/Assets.xcassets/AppIcon.appiconset/ios-1024.png --out docs/playstore/icon-512.png
 ```
 
-(`ios-1024.png` is the full-bleed square icon; Play applies its own rounded mask. Look at the result.) Feature graphic with Pillow (already installed for system Python; run it with `-I` and keep the script in a scratch directory):
+The 512 icon and the feature graphic are both drawn with Pillow from the Task 13 Noto Serif JP glyph (never from `ios-1024.png`, which uses Hiragino). Run them with `-I` and keep the scripts in `$SCRATCH`. `FONT="$SCRATCH/NotoSerifJP-700.ttf"` (repeat the Task 13 download and instancer commands if it is gone). Full-bleed square, no alpha (Play applies its own mask):
 
 ```bash
-SCRATCH=$(mktemp -d)
+# ENV
+FONT="$SCRATCH/NotoSerifJP-700.ttf"
+cat > "$SCRATCH/icon512.py" <<'PY'
+import sys
+from PIL import Image, ImageDraw, ImageFont
+N = 512
+img = Image.new("RGB", (N, N))
+px = img.load()
+for y in range(N):
+    for x in range(N):
+        t = (x + y) / (2 * N)
+        px[x, y] = (int(0x2E + (0x12 - 0x2E) * t), int(0x30 + (0x12 - 0x30) * t), int(0x47 + (0x18 - 0x47) * t))
+d = ImageDraw.Draw(img)
+d.line([(84, 448), (448, 84)], fill=(0xFF, 0x5C, 0x4D), width=22)
+d.text((256, 262), "断", font=ImageFont.truetype(sys.argv[1], 290), fill="white", anchor="mm", stroke_width=5, stroke_fill=(0x12, 0x12, 0x18))
+img.save("docs/playstore/icon-512.png")
+PY
+python3 -I "$SCRATCH/icon512.py" "$FONT"
+```
+
+Feature graphic with Pillow (already installed for system Python; run it with `-I` and keep the script in a scratch directory):
+
+```bash
+# ENV
 cat > "$SCRATCH/feature.py" <<'PY'
 import sys
 from PIL import Image, ImageDraw, ImageFont
@@ -3007,7 +3065,7 @@ for y in range(H):
         px[x, y] = (int(0x2E + (0x12 - 0x2E) * t), int(0x30 + (0x12 - 0x30) * t), int(0x47 + (0x18 - 0x47) * t))
 d = ImageDraw.Draw(img)
 d.line([(40, 470), (260, 250)], fill=(0xFF, 0x5C, 0x4D), width=14)
-mincho = ImageFont.truetype(sys.argv[1], 300)   # Noto Serif JP instance from Task 13
+mincho = ImageFont.truetype(sys.argv[1], 300)   # Noto Serif JP wght=700 instance from Task 13
 d.text((330, 235), "断", font=mincho, fill="white", anchor="mm")
 sans = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 84)
 small = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 38)
@@ -3015,11 +3073,11 @@ d.text((520, 190), "Tatsu", font=sans, fill="white", anchor="lm")
 d.text((522, 280), "Offline kanji dictionary", font=small, fill=(0xDD, 0xDD, 0xE6), anchor="lm")
 img.save("docs/playstore/feature-graphic.png")
 PY
-python3 -I "$SCRATCH/feature.py" "$FONT"   # FONT = the NotoSerifJP-600.ttf from Task 13 (repeat its download and instancer commands if that scratch directory is gone)
+python3 -I "$SCRATCH/feature.py" "$FONT"
 sips -g pixelWidth -g pixelHeight -g hasAlpha docs/playstore/feature-graphic.png docs/playstore/icon-512.png
 ```
 
-Expected: 1024×500 with `hasAlpha: no`, and 512×512. Look at both images; adjust positions in the script if the glyph or text collide. If the glyph renders as a box, the wrong font path was passed.
+Expected: 1024×500 with `hasAlpha: no`, and 512×512. Look at both images (the icon must show the Noto glyph and the cut, not the iOS icon); adjust positions in the scripts if the glyph or text collide. If the glyph renders as a box, the wrong font path was passed.
 
 - [ ] **Step 2: Capture phone and tablet screenshots (light mode only; three scenes)**
 
@@ -3042,14 +3100,21 @@ for MODE in light; do
   adb shell am start -n com.abbabon.kanjioffline/.MainActivity; sleep 3
   adb shell input text water; sleep 2
   adb exec-out screencap -p > docs/playstore/screenshots/DEVICE-search-$MODE.png      # scene 1: results
-  # scene 2: open the first result (tap its row; get the coordinates from the screenshot) 
+  # scene 2: open the first result, 水 (tap its row; get the coordinates from the screenshot)
   adb shell input tap X Y; sleep 2
   adb exec-out screencap -p > docs/playstore/screenshots/DEVICE-detail-$MODE.png
-  # scene 3: recents (clear the query; on a phone press back first)
+  # scene 3: recents. 水 is already recorded; now open 日 so Recent shows 日 then 水
+  adb shell input keyevent KEYCODE_BACK; sleep 1                # phone: back to the list (tablet: harmless, may exit; relaunch if so)
+  adb shell input text sun; sleep 2
+  adb shell input tap X Y; sleep 2                              # first result is 日
+  adb shell input keyevent KEYCODE_BACK; sleep 1
+  # clear the field: tap the x (read its coordinates off a screenshot) so the Recent header shows
+  adb shell input tap CX CY; sleep 2
+  adb exec-out screencap -p > docs/playstore/screenshots/DEVICE-recent-$MODE.png
 done
 ```
 
-Replace `DEVICE` with `phone` or `tablet10`, `X Y` with a point inside the first result row (read it off the screenshot), and finish scene 3 by pressing back on the phone (`adb shell input keyevent KEYCODE_BACK`) then clearing the field (tap the x) so the Recent header shows; type `water`, open 水, then type `sun`, open 日 before scene 3 so Recent has two rows. For tablets the detail scene is the two-pane view with 水 highlighted. After each device: `adb shell wm size reset`, `adb shell am broadcast -a com.android.systemui.demo -e command exit`, `adb shell cmd uimode night auto`, then `adb emu kill`. Never use `osascript` or any Mac UI automation.
+Replace `DEVICE` with `phone` or `tablet10`, `X Y` with a point inside the first result row (read it off the screenshot), and `CX CY` with the clear (x) button. Scene 3 must show a Recent header with two rows (日, 水). For tablets the detail scene is the two-pane view with 水 highlighted. After each device: `adb shell wm size reset`, `adb shell am broadcast -a com.android.systemui.demo -e command exit`, `adb shell cmd uimode night auto`, then `adb emu kill`. Never use `osascript` or any Mac UI automation.
 
 - [ ] **Step 3: Check every image**
 
@@ -3076,7 +3141,7 @@ git commit -m "Android: Play Store screenshots, feature graphic and icon"
 # ENV; phone emulator booted and the only device
 cd android && ./gradlew clean test bundleRelease && ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest
 git status --short   # clean
-git log --format='%an <%ae> | %cn <%ce>' android..HEAD 2>/dev/null | sort -u   # one line: Abbabon <1280330+Abbabon@users.noreply.github.com> | same
+git log --format='%an <%ae> | %cn <%ce>' main..HEAD 2>/dev/null | sort -u   # one line: Abbabon <1280330+Abbabon@users.noreply.github.com> | same
 git log --format=%B main..HEAD | grep -i -E "co-authored-by" || echo "no trailers"
 ```
 
