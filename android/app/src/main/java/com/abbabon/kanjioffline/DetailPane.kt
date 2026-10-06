@@ -55,7 +55,7 @@ fun DetailPane(kanji: Kanji, labels: Labels, showBack: Boolean, onBack: () -> Un
             Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState(), enabled = true)
+                .verticalScroll(androidx.compose.runtime.key(kanji.k) { rememberScrollState() })
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
