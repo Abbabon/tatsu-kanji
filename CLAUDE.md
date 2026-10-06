@@ -59,3 +59,24 @@ xcodebuild -project Tatsu.xcodeproj -scheme Tatsu -destination 'platform=iOS Sim
 If the simulator can't be found by name, use `id=<UDID>` from `xcrun simctl list devices available`.
 
 Never drive the Mac UI with osascript/System Events keystrokes or clicks without asking the user first. Mac-only UI behaviour goes into a manual checklist for the user.
+
+## Running Android tests
+
+Work from `android/`. The Android SDK is in `~/Library/Android/sdk`; the build needs JDK 17:
+
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 17 2>/dev/null || echo /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home)
+export ANDROID_HOME=$HOME/Library/Android/sdk
+export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH
+cd android && ./gradlew test                     # JVM unit tests, no emulator needed
+```
+
+Instrumented tests (`connectedDebugAndroidTest`) run on an **emulator only**, never on a physical device without asking. Start one headless and check it is the only device:
+
+```bash
+$HOME/Library/Android/sdk/emulator/emulator -avd tatsu_phone -no-window -no-audio -gpu swiftshader_indirect &
+adb devices                                      # must list only emulator-5554
+ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest
+```
+
+Never drive the Mac UI to work with the emulator; use `adb` (`input`, `screencap`).

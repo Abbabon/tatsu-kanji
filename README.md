@@ -1,6 +1,6 @@
 <p align="center"><img src="logo.png" width="160" alt="Tatsu"></p>
 <h1 align="center">Tatsu</h1>
-<p align="center"><b>断</b> · <i>tatsu</i> · to cut off, to sever<br>Offline kanji lookup for iPhone, iPad and Mac.</p>
+<p align="center"><b>断</b> · <i>tatsu</i> · to cut off, to sever<br>Offline kanji lookup for iPhone, iPad, Mac and Android.</p>
 
 ---
 
@@ -9,6 +9,8 @@ Type English, hiragana, katakana, romaji, or paste a sentence of kanji. Get the 
 ## Install
 
 From the App Store (iPhone, iPad and Mac). To build it yourself, open `Tatsu.xcodeproj` in Xcode 26 or later and press Run.
+
+Android: from Google Play (phones, tablets, foldables). To build it yourself, install JDK 17 and run `./gradlew assembleDebug` in `android/`.
 
 ## Search
 
@@ -24,7 +26,9 @@ Ranking: exact match, then prefix, then whole word, then substring, then one edi
 
 Tap a kanji to see its details. Copy it from the detail view, or long-press (right-click on Mac) a result. Kanji you open or copy appear under Recent when the search box is empty. Recent lookups stay on the device.
 
-Can't type a kanji on iPhone? Add the Chinese – Handwriting keyboard and draw it.
+Android: select text in any app and choose Tatsu from the selection menu to look it up.
+
+Can't type a kanji on iPhone? Add the Chinese – Handwriting keyboard and draw it. On Android, add Gboard's Japanese Handwriting layout.
 
 ## Project layout
 
@@ -36,6 +40,8 @@ Can't type a kanji on iPhone? Add the Chinese – Handwriting keyboard and draw 
 | `Tatsu/ContentView.swift`, `KanjiDetail.swift`, `AboutView.swift` | SwiftUI interface, shared by all platforms. |
 | `Tatsu/Recent.swift` | Recent lookups (SwiftData). |
 | `TatsuTests/` | Search, formatting and recent lookup tests. |
+| `android/` | Native Android app (Kotlin, Jetpack Compose). Same search and data; Material 3. |
+| `docs/playstore.md` | Play Console listing text. |
 | `build_data.py` | Regenerates `kanji.json` from the latest KANJIDIC2. |
 
 ## Test
@@ -45,6 +51,19 @@ xcodebuild -project Tatsu.xcodeproj -scheme Tatsu -destination 'platform=iOS Sim
 ```
 
 Tests run on the iOS Simulator in the background; use any simulator from `xcrun simctl list devices available`. If the simulator can't be found by name, use `id=<UDID>` from that list.
+
+### Android
+
+```sh
+export JAVA_HOME=$(/usr/libexec/java_home -v 17 2>/dev/null || echo /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home)
+cd android && ./gradlew test
+```
+
+JVM tests read `Tatsu/kanji.json` directly. UI tests (`./gradlew connectedDebugAndroidTest`) need an emulator. Gradle copies `Tatsu/kanji.json` into the APK at build time; there is only one copy in the repo.
+
+## Releases
+
+Releases are tagged per platform as `iOS-X.Y` and `android-X.Y`, for example `android-0.1`.
 
 ## Update the dictionary
 
@@ -56,4 +75,4 @@ Then run the tests.
 
 ## Data and license
 
-Kanji data is [KANJIDIC2](https://www.edrdg.org/wiki/index.php/KANJIDIC_Project) by the Electronic Dictionary Research and Development Group, used under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). App code is MIT.
+Kanji data is [KANJIDIC2](https://www.edrdg.org/wiki/index.php/KANJIDIC_Project) by the Electronic Dictionary Research and Development Group, used under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). App code is MIT. The Android icon glyph 断 is drawn from Noto Serif JP (SIL Open Font License 1.1, https://openfontlicense.org).
