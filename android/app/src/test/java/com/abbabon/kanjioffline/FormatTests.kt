@@ -47,7 +47,7 @@ class FormatTests {
         assertFalse(isTypable("\r"))
         assertFalse(isTypable("\u007F"))
         assertFalse(isTypable("\u0000"))     // what a non-character key reports
-        assertFalse(isTypable(""))     // private-use key codes (an escape, never a literal)
+        assertFalse(isTypable("\uF700"))     // private-use key codes (an escape, never a literal)
     }
 
     @Test
