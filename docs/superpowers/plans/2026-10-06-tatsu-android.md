@@ -101,7 +101,7 @@ Inputs the spec implies but no obvious test covers. Each line gets a test in the
 Run every shell block from the repo root `/Users/amit/repos/kanji-offline-android` (the `android` worktree) unless it says otherwise. `ENV` below means this block, run once per shell (shell state does not persist between tool calls, so repeat it at the top of each command):
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+export JAVA_HOME=$(/usr/libexec/java_home -v 17 2>/dev/null || echo /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home)
 export ANDROID_HOME=$HOME/Library/Android/sdk
 export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH
 export SCRATCH=/private/tmp/claude-502/tatsu-android-scratch; mkdir -p "$SCRATCH"
@@ -147,7 +147,7 @@ Expected: a path like `/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents
 
 ```bash
 brew install --cask android-commandlinetools
-export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+export JAVA_HOME=$(/usr/libexec/java_home -v 17 2>/dev/null || echo /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home)
 SDKM=$(brew --prefix)/share/android-commandlinetools/cmdline-tools/latest/bin/sdkmanager
 yes | $SDKM --sdk_root=$HOME/Library/Android/sdk --licenses
 $SDKM --sdk_root=$HOME/Library/Android/sdk "cmdline-tools;latest" "platform-tools" "platforms;android-36" "build-tools;36.0.0" "emulator"
@@ -2776,7 +2776,7 @@ git commit -m "Android: adaptive and themed launcher icon drawn from logo.svg"
 ```bash
 mkdir -p ~/Keys/tatsu && chmod 700 ~/Keys ~/Keys/tatsu
 PW=$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)
-export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+export JAVA_HOME=$(/usr/libexec/java_home -v 17 2>/dev/null || echo /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home)
 "$JAVA_HOME/bin/keytool" -genkeypair -v -keystore ~/Keys/tatsu/upload.jks \
   -alias upload -keyalg RSA -keysize 2048 -validity 10000 -storepass "$PW" -keypass "$PW" \
   -dname "CN=Tatsu upload key, O=Abbabon, C=IL"
@@ -2869,7 +2869,7 @@ git commit -m "Android: release signing config, R8 verified, AAB build"
 Work from `android/`. The Android SDK is in `~/Library/Android/sdk`; the build needs JDK 17:
 
 ```bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+export JAVA_HOME=$(/usr/libexec/java_home -v 17 2>/dev/null || echo /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home)
 export ANDROID_HOME=$HOME/Library/Android/sdk
 export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools:$PATH
 cd android && ./gradlew test                     # JVM unit tests, no emulator needed
@@ -2894,7 +2894,7 @@ Never drive the Mac UI to work with the emulator; use `adb` (`input`, `screencap
 ### Android
 
 ```sh
-export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+export JAVA_HOME=$(/usr/libexec/java_home -v 17 2>/dev/null || echo /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home)
 cd android && ./gradlew test
 ```
 
