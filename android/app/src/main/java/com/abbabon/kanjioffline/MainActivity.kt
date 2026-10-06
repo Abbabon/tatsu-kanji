@@ -26,6 +26,12 @@ class MainActivity : ComponentActivity() {
 
     private fun applyProcessText(intent: Intent?) {
         if (intent?.action != Intent.ACTION_PROCESS_TEXT) return
-        intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()?.let(vm::applyHandOff)
+        intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()?.let { vm.applyHandOff(capHandOff(it)) }
+    }
+
+    // the query lives in SavedStateHandle (Binder-limited): bound what other apps can push in, without splitting a surrogate pair
+    private fun capHandOff(t: String): String {
+        if (t.length <= 1000) return t
+        return t.take(if (t[999].isHighSurrogate()) 999 else 1000)
     }
 }
