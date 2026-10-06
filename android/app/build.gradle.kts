@@ -11,8 +11,8 @@ val copyKanjiData = tasks.register<Copy>("copyKanjiData") {
     into(kanjiAssetsDir)
 }
 
-// srcDir(...builtBy) no longer carries task dependencies under AGP 9, so wire the copy explicitly
-tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.configureEach { dependsOn(copyKanjiData) }
+// srcDir(...builtBy) no longer carries task dependencies under AGP 9, so wire the copy explicitly (lint tasks read the folder too)
+tasks.matching { (it.name.startsWith("merge") && it.name.endsWith("Assets")) || it.name.contains("lint", ignoreCase = true) }.configureEach { dependsOn(copyKanjiData) }
 
 android {
     namespace = "com.abbabon.kanjioffline"
@@ -36,11 +36,24 @@ android {
 
     sourceSets.getByName("main").assets.directories.add(kanjiAssetsDir.get().asFile.absolutePath)
 
+    // Upload key: only present on the maintainer's Mac (properties live in ~/.gradle/gradle.properties).
+    // Without them `bundleRelease` still builds, just unsigned.
+    val uploadStore = providers.gradleProperty("TATSU_UPLOAD_STORE_FILE")
+    if (uploadStore.isPresent) {
+        signingConfigs.create("upload") {
+            storeFile = file(uploadStore.get())
+            storePassword = providers.gradleProperty("TATSU_UPLOAD_STORE_PASSWORD").get()
+            keyAlias = providers.gradleProperty("TATSU_UPLOAD_KEY_ALIAS").get()
+            keyPassword = providers.gradleProperty("TATSU_UPLOAD_KEY_PASSWORD").get()
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfigs.findByName("upload")?.let { signingConfig = it }
         }
     }
 }
