@@ -14,11 +14,12 @@ Ship Tatsu on Google Play for Android phones, tablets and foldables. It does eve
 | Devices | Phones, tablets and foldables. One adaptive layout. ChromeOS works but gets no extra polish. |
 | Minimum OS | minSdk 26 (Android 8.0). targetSdk and compileSdk are the latest stable SDK at implementation time (36 or newer, as Play requires). |
 | Distribution | Google Play, free, AAB with Play App Signing. The upload keystore lives outside the repo. |
-| Package | `com.abbabon.tatsu`. It can never change after the first upload. |
+| Package | `com.abbabon.kanjioffline`. It can never change after the first upload. |
 | Version | versionName `0.1`, versionCode `1`. |
 | Name | Store name "Tatsu – Offline Kanji", launcher name "Tatsu". |
 | Network | None. No `INTERNET` permission. |
 | Privacy | Data safety form: no data collected, no data shared. Recents stay on the device. |
+| Backup | `android:allowBackup="false"`. Recents never leave the device and are not in Google backups or device transfers. |
 | Data | `Tatsu/kanji.json` (KANJIDIC2, 10,348 entries) is copied into the APK assets by Gradle at build time. `build_data.py` stays the only generator. |
 | Persistence | Jetpack DataStore (Preferences) storing the recent list as one ordered string, newest first, capped at 100. No Room. |
 | Language | English. All UI strings in `strings.xml`, including the grade labels and section labels that iOS hardcodes. |
@@ -41,8 +42,8 @@ Ship Tatsu on Google Play for Android phones, tablets and foldables. It does eve
 
 1. **Text-selection menu.** `ACTION_PROCESS_TEXT` intent filter, label "Tatsu". Selecting text in any app and choosing Tatsu opens it with that text searched. Read-only (we never return text).
 2. **Edge-to-edge and predictive back.** `enableEdgeToEdge()`, and predictive back opts in through the manifest. On phones, back from detail returns to the list with the system animation.
-3. **Themed icon.** Adaptive icon plus a monochrome layer for Android 13+ themed icons, drawn from `logo.svg`.
-4. **Gboard hint.** The "No matches." hint says how to add Japanese handwriting in Gboard, in place of the iOS Chinese Handwriting keyboard hint.
+3. **Themed icon.** Adaptive icon plus a monochrome layer for Android 13+ themed icons, drawn from `logo.svg`. The 断 outline is extracted from Noto Serif JP (SIL OFL 1.1), downloaded from an official source, not from Hiragino; the About sheet credits the font.
+4. **Gboard hint.** The "No matches." hint says how to add Japanese handwriting in Gboard ("No matches. To write kanji by hand, add Gboard's Japanese Handwriting layout: Gboard settings → Languages → Japanese → Handwriting."; path verified 2026-10-06 against Gboard Help, support.google.com/gboard/answer/9108773), in place of the iOS Chinese Handwriting keyboard hint.
 
 ### Not in scope
 
@@ -53,7 +54,7 @@ The iOS roadmap items (camera lookup, stroke order, words, radicals, built-in ha
 | iOS | Android |
 |---|---|
 | `NavigationSplitView` | `ListDetailPaneScaffold` from `material3-adaptive`. One pane with a push transition on compact widths; two panes on medium and expanded widths (tablets, unfolded foldables, landscape). |
-| `.searchable` | A full-width Material 3 search input (`SearchBarDefaults.InputField`) pinned at the top of the list pane. Results show in the list below it, not in an expanding search overlay. The leading icon is search; the trailing icon clears the field when it has text. Autocorrect and capitalisation are off; IME action is Search (Enter picks). The field is focused at launch with the keyboard up. |
+| `.searchable` | A full-width pill-shaped `TextField` (rounded 28dp, no underline) pinned at the top of the list pane. Results show in the list below it, not in an expanding search overlay. The leading icon is search; the trailing icon clears the field when it has text. `SearchBarDefaults.InputField` is not used because it has no `keyboardOptions`; a plain `TextField` lets us turn autocorrect and capitalisation off and set the IME action to Search (Enter picks). The field is focused at launch with the keyboard up. |
 | List row | `ListItem`: leading kanji at 40sp, headline the meanings, supporting text the readings. Long-press opens a `DropdownMenu`. The selected row is highlighted in two-pane mode. |
 | "Recent" header + Clear | A section header row with a `TextButton("Clear")`. |
 | Toolbar info button | `IconButton` with the info icon in the list pane's top bar, which opens the About screen as a `ModalBottomSheet`. |
@@ -106,7 +107,8 @@ One Gradle module, `app`. No dependency-injection framework, no repository layer
   - themed icon;
   - hardware-keyboard behaviour;
   - TalkBack pass;
-  - dark mode.
+  - dark mode;
+  - on a device, Japanese handwriting in Gboard recognises kanji and the hint's menu labels match.
 
 ## Toolchain and repo
 
@@ -124,12 +126,21 @@ One Gradle module, `app`. No dependency-injection framework, no repository layer
   - category Education;
   - content rating questionnaire answers;
   - data safety answers ("no data collected");
-  - privacy policy URL pointing at `PRIVACY.md` on GitHub.
+  - privacy policy URL `https://github.com/Abbabon/tatsu-kanji/blob/main/PRIVACY.md`.
 - `PRIVACY.md` adds Android wording: how to clear recents, and that uninstalling deletes them.
 - Screenshots:
-  - phone, 7" tablet and 10" tablet, light and dark;
+  - phone and 10" tablet, light mode only (about 6 files);
   - captured from emulators with `adb exec-out screencap`;
   - stored in `docs/playstore/screenshots/`;
   - plus a 1024×500 feature graphic and a 512×512 icon.
-- New personal Play developer accounts must run a closed test with at least 12 testers for 14 days before production access. Plan for that delay, or check whether the account is exempt (organisation accounts and older accounts are).
+- Upload to internal testing first. Personal accounts created after 13 November 2023 must run a closed test (at least 12 testers, 14 days) before production; whether that applies is not known yet. If Play Console shows the closed-testing requirement banner, run that test; otherwise go straight to production.
+- Upload keystore: `~/Keys/tatsu/upload.jks`, password in `~/.gradle/gradle.properties`. Both need a backup.
 - Upload is done by hand by the user, as with App Store Connect.
+
+## Execution and git
+
+- One subagent per plan task, with a review between tasks.
+- After each reviewed task, push the branch: `git push -u origin android`.
+- After the last task, merge `android` into `main` with a merge commit (`--no-ff`, like the `swiftui` merge) and push `main`.
+- Tags are per platform from now on: `android-X.Y` and `iOS-X.Y` (exact case, no `v`). `android-0.1` is created and pushed only after the user confirms the Play upload.
+- Commits use the repo-local Abbabon identity, with no trailers.

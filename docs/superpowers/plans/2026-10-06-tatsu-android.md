@@ -10,12 +10,14 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-06-tatsu-android-design.md`. The iOS sources in `Tatsu/*.swift` and tests in `TatsuTests/*.swift` are the behavioural reference; this plan ports them. Read the spec before starting.
 
+**Execution:** one subagent per task, with a review between tasks. After each reviewed task, push the branch (see "Execution and git" below).
+
 ## Global Constraints
 
 - Separate native app in `android/` in this repo. Kotlin, Jetpack Compose, Material 3. No code shared with Swift; data and test cases are shared.
 - Phones, tablets and foldables, one adaptive layout. ChromeOS gets no extra polish.
 - minSdk 26. targetSdk and compileSdk are the latest stable SDK at implementation time (36 or newer, as Play requires). This plan pins 36 (see Pinned versions).
-- Package `com.abbabon.tatsu` (never changes after the first upload). versionName `0.1`, versionCode `1`.
+- Package `com.abbabon.kanjioffline` (never changes after the first upload). versionName `0.1`, versionCode `1`.
 - Store name "Tatsu – Offline Kanji", launcher name "Tatsu".
 - No network: no `INTERNET` permission.
 - Data safety: no data collected, none shared. Recents stay on the device.
@@ -76,7 +78,7 @@ Inputs the spec implies but no obvious test covers. Each line gets a test in the
 | `app/src/main/AndroidManifest.xml` | Manifest | 2, 11 |
 | `app/src/main/res/values/strings.xml`, `values/themes.xml`, `values-night/themes.xml` | Strings, window theme | 2, 7 |
 | `app/src/main/res/drawable/ic_launcher_*.xml`, `mipmap-anydpi-v26/ic_launcher.xml` | Adaptive + themed icon | 13 |
-| `app/src/main/java/com/abbabon/tatsu/Kanji.kt` | Model, JSON parse, asset load | 3 |
+| `app/src/main/java/com/abbabon/kanjioffline/Kanji.kt` | Model, JSON parse, asset load | 3 |
 | `.../Search.kt` | `toHira`, `romaji`, `Searcher` (pure) | 4 |
 | `.../Format.kt` | `readingParts`, `Labels`, `gradeLabel`, `metaLine`, `stepSelection`, `isTypable`, `mergeOrder` (pure) | 5 |
 | `.../Recents.kt` | DataStore wrapper | 6 |
@@ -87,8 +89,8 @@ Inputs the spec implies but no obvious test covers. Each line gets a test in the
 | `.../ListPane.kt` | Search field, rows, recents, empty states | 9 |
 | `.../TatsuScreen.kt` | Adaptive scaffold, copy, key handling (small addition to the spec's file list: the glue between the panes) | 9, 10 |
 | `.../MainActivity.kt` | Edge-to-edge, theme, `EXTRA_PROCESS_TEXT` | 9, 11 |
-| `app/src/test/java/com/abbabon/tatsu/{TestData,DataTests,SearchTests,FormatTests,RecentsTest}.kt` | JVM tests | 3-6 |
-| `app/src/androidTest/java/com/abbabon/tatsu/AppTest.kt` | Instrumented Compose test | 12 |
+| `app/src/test/java/com/abbabon/kanjioffline/{TestData,DataTests,SearchTests,FormatTests,RecentsTest}.kt` | JVM tests | 3-6 |
+| `app/src/androidTest/java/com/abbabon/kanjioffline/AppTest.kt` | Instrumented Compose test | 12 |
 | `CLAUDE.md`, `README.md`, `PRIVACY.md`, `.gitignore` (repo root) | Docs and ignores | 2, 15 |
 | `docs/playstore.md`, `docs/playstore/screenshots/*`, `docs/playstore/feature-graphic.png`, `docs/playstore/icon-512.png` | Store listing | 15, 16 |
 
@@ -107,6 +109,14 @@ export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDRO
 - If the executor can read images, "look at the screenshot" means: `adb exec-out screencap -p > "$SCRATCH/x.png"` then read the PNG. `SCRATCH` is any scratch directory outside the repo (`SCRATCH=$(mktemp -d)`).
 - The compile-checked Kotlin below is written against the pinned versions but could not be compiled when this plan was written. If a Compose or adaptive API name or signature is rejected, fix it against the compiler error (and the library's source/docs) while keeping the behaviour described. Do not change behaviour to dodge a compile error.
 
+## Execution and git
+
+- One subagent per task, with a review between tasks.
+- The per-task `git commit` blocks below commit only. After each task has been reviewed, push the branch: `git push -u origin android` (the first push sets the upstream).
+- Commits are authored by the repo-local identity Abbabon; no trailers.
+- After Task 16 (and the final verification), merge `android` into `main` with a merge commit, no fast-forward, like the earlier `swiftui` merge, and push `main`: `git checkout main && git merge --no-ff android && git push origin main`. Run it from the main checkout `/Users/amit/repos/kanji-offline` (git does not allow `main` to be checked out in two worktrees at once; the `android` worktree keeps `android`).
+- Tags are per platform from now on: `android-X.Y` and `iOS-X.Y` (exact case, no `v`). `android-0.1` is created and pushed only after the user confirms the Play upload (last step of the handover). Do not tag before that.
+
 ---
 
 ### Task 1: Toolchain from zero
@@ -115,7 +125,7 @@ No repo changes. Deliverable: a JDK, SDK command-line tools, the API 36 platform
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: `ENV` works (`java -version` says 17); `sdkmanager` and `avdmanager` on PATH; AVDs `tatsu_phone`, `tatsu_tablet10`, `tatsu_fold`, plus a 7-inch tablet AVD `tatsu_tablet7`; `adb devices` lists an emulator when one is running.
+- Produces: `ENV` works (`java -version` says 17); `sdkmanager` and `avdmanager` on PATH; AVDs `tatsu_phone`, `tatsu_tablet10`, `tatsu_fold`; `adb devices` lists an emulator when one is running.
 
 What to verify: this Mac has the Android SDK (platforms: only `android-35`; build-tools 35.0.1 and 36.0.0; emulator; arm64 system images for API 36) but no JDK, no command-line tools (so no `sdkmanager`/`avdmanager`), and no AVDs.
 
@@ -147,14 +157,14 @@ Accepting the licences is a legal acknowledgement made on the user's behalf; tel
 ```bash
 # ENV
 sdkmanager --list_installed | grep system-images        # expect android-36 google_apis_playstore arm64-v8a
-avdmanager list device -c | grep -E "^(pixel_8|pixel_tablet|pixel_fold|nexus_7|nexus_10)"
+avdmanager list device -c | grep -E "^(pixel_8|pixel_tablet|pixel_fold)"
 IMG="system-images;android-36;google_apis_playstore;arm64-v8a"
 avdmanager create avd -n tatsu_phone    -k "$IMG" -d pixel_8
 avdmanager create avd -n tatsu_tablet10 -k "$IMG" -d pixel_tablet
 avdmanager create avd -n tatsu_fold     -k "$IMG" -d pixel_fold
 ```
 
-For the 7-inch tablet pick a profile of about 7 inches from the `list device -c` output (for example `nexus_7_2013` or `nexus_7`) and create `tatsu_tablet7` the same way. If `pixel_8` is not listed use `pixel_7`. Answer `no` to any custom hardware profile prompt.
+If `pixel_8` is not listed use `pixel_7`. Answer `no` to any custom hardware profile prompt.
 
 - [ ] **Step 5: Boot the phone emulator headless and confirm it**
 
@@ -183,7 +193,7 @@ No commit in this step. Report the JDK path, installed SDK packages, the AVD nam
 - Create: `android/app/build.gradle.kts`, `android/app/proguard-rules.pro`
 - Create: `android/app/src/main/AndroidManifest.xml`
 - Create: `android/app/src/main/res/values/strings.xml`, `values/themes.xml`, `values-night/themes.xml`
-- Create: `android/app/src/main/java/com/abbabon/tatsu/MainActivity.kt` (placeholder)
+- Create: `android/app/src/main/java/com/abbabon/kanjioffline/MainActivity.kt` (placeholder)
 - Modify: `.gitignore`
 
 **Interfaces:**
@@ -307,11 +317,11 @@ val copyKanjiData = tasks.register<Copy>("copyKanjiData") {
 }
 
 android {
-    namespace = "com.abbabon.tatsu"
+    namespace = "com.abbabon.kanjioffline"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.abbabon.tatsu"
+        applicationId = "com.abbabon.kanjioffline"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
@@ -428,10 +438,10 @@ If AGP 9 rejects `compileSdk = 36` or `sourceSets.getByName("main")`, use the fo
 </resources>
 ```
 
-`android/app/src/main/java/com/abbabon/tatsu/MainActivity.kt` (placeholder, replaced in Task 9):
+`android/app/src/main/java/com/abbabon/kanjioffline/MainActivity.kt` (placeholder, replaced in Task 9):
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -468,7 +478,7 @@ local.properties
 cd android && ./gradlew assembleDebug test
 unzip -l app/build/outputs/apk/debug/app-debug.apk | grep kanji.json
 adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell am start -n com.abbabon.tatsu/.MainActivity
+adb shell am start -n com.abbabon.kanjioffline/.MainActivity
 adb exec-out screencap -p > "$SCRATCH/launch.png"
 ```
 
@@ -487,9 +497,9 @@ git commit -m "Android: Gradle project, version catalog, kanji.json asset copy"
 ### Task 3: Kanji model and data tests
 
 **Files:**
-- Create: `android/app/src/main/java/com/abbabon/tatsu/Kanji.kt`
-- Create: `android/app/src/test/java/com/abbabon/tatsu/TestData.kt`
-- Create: `android/app/src/test/java/com/abbabon/tatsu/DataTests.kt`
+- Create: `android/app/src/main/java/com/abbabon/kanjioffline/Kanji.kt`
+- Create: `android/app/src/test/java/com/abbabon/kanjioffline/TestData.kt`
+- Create: `android/app/src/test/java/com/abbabon/kanjioffline/DataTests.kt`
 
 **Interfaces:**
 - Consumes: the `kanji.json` system property set in `app/build.gradle.kts`.
@@ -501,10 +511,10 @@ git commit -m "Android: Gradle project, version catalog, kanji.json asset copy"
 
 - [ ] **Step 1: Write the failing test**
 
-`android/app/src/test/java/com/abbabon/tatsu/TestData.kt`:
+`android/app/src/test/java/com/abbabon/kanjioffline/TestData.kt`:
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import java.io.File
 
@@ -516,10 +526,10 @@ object TestData {
 }
 ```
 
-`android/app/src/test/java/com/abbabon/tatsu/DataTests.kt`:
+`android/app/src/test/java/com/abbabon/kanjioffline/DataTests.kt`:
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -561,10 +571,10 @@ Expected: FAIL to compile, `Unresolved reference 'parseKanji'` / `'Kanji'`.
 
 - [ ] **Step 3: Implement**
 
-`android/app/src/main/java/com/abbabon/tatsu/Kanji.kt`:
+`android/app/src/main/java/com/abbabon/kanjioffline/Kanji.kt`:
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import android.content.Context
 import kotlinx.serialization.Serializable
@@ -612,9 +622,9 @@ git commit -m "Android: Kanji model, JSON parsing and data tests"
 Port of `Tatsu/Search.swift` and the `RomajiTests`/`SearchTests` structs in `TatsuTests/SearchTests.swift`. Pure Kotlin, no Android imports.
 
 **Files:**
-- Create: `android/app/src/main/java/com/abbabon/tatsu/Search.kt`
-- Create: `android/app/src/test/java/com/abbabon/tatsu/SearchTests.kt`
-- Modify: `android/app/src/test/java/com/abbabon/tatsu/TestData.kt`
+- Create: `android/app/src/main/java/com/abbabon/kanjioffline/Search.kt`
+- Create: `android/app/src/test/java/com/abbabon/kanjioffline/SearchTests.kt`
+- Modify: `android/app/src/test/java/com/abbabon/kanjioffline/TestData.kt`
 
 **Interfaces:**
 - Consumes: `Kanji`, `TestData.all` (Task 3).
@@ -636,10 +646,10 @@ Append to `TestData` (inside the object):
 
 - [ ] **Step 2: Write the failing tests**
 
-`android/app/src/test/java/com/abbabon/tatsu/SearchTests.kt`:
+`android/app/src/test/java/com/abbabon/kanjioffline/SearchTests.kt`:
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -764,10 +774,10 @@ Expected: FAIL to compile, `Unresolved reference 'romaji'` / `'Searcher'`.
 
 - [ ] **Step 4: Implement**
 
-`android/app/src/main/java/com/abbabon/tatsu/Search.kt`:
+`android/app/src/main/java/com/abbabon/kanjioffline/Search.kt`:
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import kotlin.math.abs
 
@@ -917,7 +927,7 @@ Expected: PASS, all `DataTests`, `RomajiTests`, `SearchTests`. If a ranking asse
 - [ ] **Step 6: Confirm the file is Android-free**
 
 ```bash
-grep -nE "import (android|androidx)" android/app/src/main/java/com/abbabon/tatsu/Search.kt || echo "clean"
+grep -nE "import (android|androidx)" android/app/src/main/java/com/abbabon/kanjioffline/Search.kt || echo "clean"
 ```
 
 Expected: `clean`.
@@ -936,8 +946,8 @@ git commit -m "Android: port search (romaji, ranking, typo tolerance) with tests
 Port of `Tatsu/Format.swift` (without the Mac-only `keyRoute`, `KeyFocus`, `copyToPasteboard`) and `TatsuTests/FormatTests.swift`. Label strings are passed in so the logic stays JVM-testable.
 
 **Files:**
-- Create: `android/app/src/main/java/com/abbabon/tatsu/Format.kt`
-- Create: `android/app/src/test/java/com/abbabon/tatsu/FormatTests.kt`
+- Create: `android/app/src/main/java/com/abbabon/kanjioffline/Format.kt`
+- Create: `android/app/src/test/java/com/abbabon/kanjioffline/FormatTests.kt`
 
 **Interfaces:**
 - Consumes: `Kanji` (Task 3).
@@ -953,10 +963,10 @@ Port of `Tatsu/Format.swift` (without the Mac-only `keyRoute`, `KeyFocus`, `copy
 
 - [ ] **Step 1: Write the failing tests**
 
-`android/app/src/test/java/com/abbabon/tatsu/FormatTests.kt`:
+`android/app/src/test/java/com/abbabon/kanjioffline/FormatTests.kt`:
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import java.util.Locale
 import org.junit.Assert.assertEquals
@@ -1059,10 +1069,10 @@ Expected: FAIL to compile, `Unresolved reference 'readingParts'` etc.
 
 - [ ] **Step 3: Implement**
 
-`android/app/src/main/java/com/abbabon/tatsu/Format.kt`:
+`android/app/src/main/java/com/abbabon/kanjioffline/Format.kt`:
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import java.util.Locale
 
@@ -1130,7 +1140,7 @@ Expected: PASS, including every earlier suite.
 - [ ] **Step 5: Confirm the file is Android-free, then commit**
 
 ```bash
-grep -nE "import (android|androidx)" android/app/src/main/java/com/abbabon/tatsu/Format.kt || echo "clean"
+grep -nE "import (android|androidx)" android/app/src/main/java/com/abbabon/kanjioffline/Format.kt || echo "clean"
 git add android/app/src
 git commit -m "Android: port format helpers with tests"
 ```
@@ -1142,8 +1152,8 @@ git commit -m "Android: port format helpers with tests"
 Port of `Tatsu/Recent.swift` and `TatsuTests/RecentTests.swift`. The list is one string, kanji separated by `\n`, newest first, capped at 100.
 
 **Files:**
-- Create: `android/app/src/main/java/com/abbabon/tatsu/Recents.kt`
-- Create: `android/app/src/test/java/com/abbabon/tatsu/RecentsTest.kt`
+- Create: `android/app/src/main/java/com/abbabon/kanjioffline/Recents.kt`
+- Create: `android/app/src/test/java/com/abbabon/kanjioffline/RecentsTest.kt`
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
@@ -1153,10 +1163,10 @@ Port of `Tatsu/Recent.swift` and `TatsuTests/RecentTests.swift`. The list is one
 
 - [ ] **Step 1: Write the failing tests**
 
-`android/app/src/test/java/com/abbabon/tatsu/RecentsTest.kt`:
+`android/app/src/test/java/com/abbabon/kanjioffline/RecentsTest.kt`:
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import java.io.File
@@ -1264,10 +1274,10 @@ Expected: FAIL to compile, `Unresolved reference 'Recents'`.
 
 - [ ] **Step 3: Implement**
 
-`android/app/src/main/java/com/abbabon/tatsu/Recents.kt`:
+`android/app/src/main/java/com/abbabon/kanjioffline/Recents.kt`:
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import android.content.Context
 import androidx.datastore.core.DataStore
@@ -1329,13 +1339,13 @@ No UI yet. Deliverable: everything the panes need compiles, strings are in `stri
 
 **Files:**
 - Modify: `android/app/src/main/res/values/strings.xml`
-- Create: `android/app/src/main/java/com/abbabon/tatsu/Theme.kt`
-- Create: `android/app/src/main/java/com/abbabon/tatsu/TatsuViewModel.kt`
+- Create: `android/app/src/main/java/com/abbabon/kanjioffline/Theme.kt`
+- Create: `android/app/src/main/java/com/abbabon/kanjioffline/TatsuViewModel.kt`
 
 **Interfaces:**
 - Consumes: `Kanji`, `loadKanji` (Task 3); `Searcher` (Task 4); `stepSelection`, `mergeOrder` (Task 5); `Recents`, `recentsStore` (Task 6).
 - Produces:
-  - Strings (names used by Tasks 8-12): `app_name`, `search_hint`, `clear_search`, `about`, `recent`, `clear`, `hint_empty`, `no_matches`, `handwriting_hint`, `copy`, `copied`, `remove_history`, `back`, `detail_empty_title`, `detail_empty_body`, `on_label`, `kun_label`, `names_label`, `meta_strokes`, `meta_grade`, `meta_joyo`, `meta_jinmei`, `meta_jlpt`, `meta_freq`, `about_tagline`, `about_blurb`, `about_data_title`, `about_data_credit`, `link_kanjidic`, `link_cc`, `about_app_title`, `about_mit`, `link_source`.
+  - Strings (names used by Tasks 8-12): `app_name`, `search_hint`, `clear_search`, `about`, `recent`, `clear`, `hint_empty`, `no_matches`, `handwriting_hint`, `copy`, `copied`, `remove_history`, `back`, `detail_empty_title`, `detail_empty_body`, `on_label`, `kun_label`, `names_label`, `meta_strokes`, `meta_grade`, `meta_joyo`, `meta_jinmei`, `meta_jlpt`, `meta_freq`, `about_tagline`, `about_blurb`, `about_data_title`, `about_data_credit`, `link_kanjidic`, `link_cc`, `about_app_title`, `about_mit`, `about_font_credit`, `link_source`.
   - `@Composable fun TatsuTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit)`
   - `fun TextStyle.ja(): TextStyle` (sets `LocaleList("ja")`)
   - `data class Found(val query: String, val kanji: List<Kanji>)`
@@ -1361,7 +1371,8 @@ Replace `android/app/src/main/res/values/strings.xml`:
     <string name="clear">Clear</string>
     <string name="hint_empty">Type English, hiragana, katakana, romaji, or paste kanji.</string>
     <string name="no_matches">No matches.</string>
-    <string name="handwriting_hint">Can\'t type it? In Gboard, add Japanese handwriting (Settings › System › Languages &amp; input › On-screen keyboard › Gboard › Languages), then draw the kanji.</string>
+    <!-- shown under "No matches."; path verified 2026-10-06 against Gboard Help, support.google.com/gboard/answer/9108773 -->
+    <string name="handwriting_hint">To write kanji by hand, add Gboard\'s Japanese Handwriting layout: Gboard settings → Languages → Japanese → Handwriting.</string>
     <string name="copy">Copy</string>
     <string name="copied">Copied</string>
     <string name="remove_history">Remove from history</string>
@@ -1389,16 +1400,17 @@ Replace `android/app/src/main/res/values/strings.xml`:
     <string name="link_cc">CC BY-SA 4.0 license</string>
     <string name="about_app_title">App</string>
     <string name="about_mit">App code is MIT licensed.</string>
+    <string name="about_font_credit">The 断 in the app icon is drawn from Noto Serif JP, copyright The Noto Project Authors, licensed under the SIL Open Font License 1.1.</string>
     <string name="link_source">Source code</string>
 </resources>
 ```
 
 - [ ] **Step 2: Theme**
 
-`android/app/src/main/java/com/abbabon/tatsu/Theme.kt`:
+`android/app/src/main/java/com/abbabon/kanjioffline/Theme.kt`:
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -1451,10 +1463,10 @@ fun TextStyle.ja(): TextStyle = copy(localeList = japanese)
 
 - [ ] **Step 3: ViewModel**
 
-`android/app/src/main/java/com/abbabon/tatsu/TatsuViewModel.kt`:
+`android/app/src/main/java/com/abbabon/kanjioffline/TatsuViewModel.kt`:
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -1579,8 +1591,8 @@ git commit -m "Android: strings, theme and view model"
 ### Task 8: Detail pane and About sheet
 
 **Files:**
-- Create: `android/app/src/main/java/com/abbabon/tatsu/DetailPane.kt`
-- Create: `android/app/src/main/java/com/abbabon/tatsu/AboutSheet.kt`
+- Create: `android/app/src/main/java/com/abbabon/kanjioffline/DetailPane.kt`
+- Create: `android/app/src/main/java/com/abbabon/kanjioffline/AboutSheet.kt`
 
 **Interfaces:**
 - Consumes: `Kanji`, `Labels`, `metaLine`, `readingParts`, `romaji`, `TextStyle.ja()`, strings from Task 7.
@@ -1594,7 +1606,7 @@ This task has no visible result until Task 9 wires it in; verification here is c
 - [ ] **Step 1: Write `DetailPane.kt`**
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -1734,7 +1746,7 @@ fun EmptyDetail() {
 - [ ] **Step 2: Write `AboutSheet.kt`**
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -1779,6 +1791,7 @@ fun AboutSheet(onDismiss: () -> Unit) {
 
             Text(stringResource(R.string.about_app_title), style = MaterialTheme.typography.titleSmall)
             Text(stringResource(R.string.about_mit))
+            Text(stringResource(R.string.about_font_credit), color = MaterialTheme.colorScheme.onSurfaceVariant)
             LinkText(stringResource(R.string.link_source), "https://github.com/Abbabon/tatsu-kanji")
         }
     }
@@ -1810,9 +1823,9 @@ git commit -m "Android: detail pane and about sheet"
 The first runnable app. After this task the phone emulator shows search, results, recents, detail, About.
 
 **Files:**
-- Create: `android/app/src/main/java/com/abbabon/tatsu/ListPane.kt`
-- Create: `android/app/src/main/java/com/abbabon/tatsu/TatsuScreen.kt`
-- Modify: `android/app/src/main/java/com/abbabon/tatsu/MainActivity.kt`
+- Create: `android/app/src/main/java/com/abbabon/kanjioffline/ListPane.kt`
+- Create: `android/app/src/main/java/com/abbabon/kanjioffline/TatsuScreen.kt`
+- Modify: `android/app/src/main/java/com/abbabon/kanjioffline/MainActivity.kt`
 
 **Interfaces:**
 - Consumes: everything from Tasks 3-8.
@@ -1824,7 +1837,7 @@ The first runnable app. After this task the phone emulator shows search, results
 - [ ] **Step 1: Write `ListPane.kt`**
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -2081,7 +2094,7 @@ private fun KanjiRow(
 - [ ] **Step 2: Write `TatsuScreen.kt`**
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import android.content.ClipData
 import android.os.Build
@@ -2225,7 +2238,7 @@ fun TatsuScreen(vm: TatsuViewModel) {
 - [ ] **Step 3: Replace `MainActivity.kt`**
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -2250,8 +2263,8 @@ class MainActivity : ComponentActivity() {
 # ENV; phone emulator booted (Task 1 step 5)
 cd android && ./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell pm clear com.abbabon.tatsu
-adb shell am start -n com.abbabon.tatsu/.MainActivity
+adb shell pm clear com.abbabon.kanjioffline
+adb shell am start -n com.abbabon.kanjioffline/.MainActivity
 sleep 3; adb exec-out screencap -p > "$SCRATCH/1-empty.png"
 adb shell input text water
 sleep 2; adb exec-out screencap -p > "$SCRATCH/2-water.png"
@@ -2273,7 +2286,7 @@ git commit -m "Android: list pane, adaptive list-detail screen, search and recen
 Up/Down step the selection, Enter picks, typing anywhere goes into the search field, Ctrl+F focuses it. Arrow keys never record a recent.
 
 **Files:**
-- Modify: `android/app/src/main/java/com/abbabon/tatsu/TatsuScreen.kt`
+- Modify: `android/app/src/main/java/com/abbabon/kanjioffline/TatsuScreen.kt`
 
 **Interfaces:**
 - Consumes: `vm.step`, `vm.enter`, `vm.setQuery`, `isTypable` (Task 5), the `onSearchFocus` callback already on `ListPane` (Task 9).
@@ -2347,8 +2360,8 @@ adb emu kill; sleep 3
 nohup emulator -avd tatsu_tablet10 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect > "$SCRATCH/emu.log" 2>&1 &
 adb wait-for-device; until [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; do sleep 3; done
 cd android && ./gradlew assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell pm clear com.abbabon.tatsu
-adb shell am start -n com.abbabon.tatsu/.MainActivity; sleep 3
+adb shell pm clear com.abbabon.kanjioffline
+adb shell am start -n com.abbabon.kanjioffline/.MainActivity; sleep 3
 adb shell input text water; sleep 2
 adb shell input keyevent KEYCODE_DPAD_DOWN; sleep 1
 adb exec-out screencap -p > "$SCRATCH/tab-down.png"
@@ -2375,8 +2388,8 @@ git commit -m "Android: hardware keyboard (arrows, Enter, type anywhere, Ctrl+F)
 
 **Files:**
 - Modify: `android/app/src/main/AndroidManifest.xml`
-- Modify: `android/app/src/main/java/com/abbabon/tatsu/MainActivity.kt`
-- Modify: `android/app/src/main/java/com/abbabon/tatsu/TatsuScreen.kt`
+- Modify: `android/app/src/main/java/com/abbabon/kanjioffline/MainActivity.kt`
+- Modify: `android/app/src/main/java/com/abbabon/kanjioffline/TatsuScreen.kt`
 
 **Interfaces:**
 - Consumes: `vm.setQuery`.
@@ -2401,7 +2414,7 @@ The menu entry takes its label from the activity, which is `@string/app_name` ("
 Replace `MainActivity.kt`:
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import android.content.Intent
 import android.os.Bundle
@@ -2451,13 +2464,13 @@ In `TatsuScreen`, add after the `LaunchedEffect(Unit)` line (add imports `androi
 # ENV; phone emulator (tatsu_phone) booted
 cd android && ./gradlew assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk
 # 1. the hand-off, the way another app would send it
-adb shell am start -n com.abbabon.tatsu/.MainActivity -a android.intent.action.PROCESS_TEXT -t text/plain --es android.intent.extra.PROCESS_TEXT 水
+adb shell am start -n com.abbabon.kanjioffline/.MainActivity -a android.intent.action.PROCESS_TEXT -t text/plain --es android.intent.extra.PROCESS_TEXT 水
 sleep 2; adb exec-out screencap -p > "$SCRATCH/pt.png"
 # 2. the entry really exists in the manifest
 adb shell cmd package query-activities --brief -a android.intent.action.PROCESS_TEXT -t text/plain | grep abbabon
 ```
 
-Expected: the screenshot shows 水 in the search field and one result row 水; the second command prints `com.abbabon.tatsu/.MainActivity`. To see the real menu entry, open any app with selectable text on the emulator (for example Chrome, or Settings search), long-press a word, open the three-dot overflow of the selection toolbar and look for "Tatsu": this is on the manual checklist at the end. Predictive back: confirm the manifest flag took effect with `adb shell dumpsys package com.abbabon.tatsu | grep -i -E "enableOnBackInvokedCallback|ON_BACK_INVOKED"` (the grep may print nothing on some builds; the visual check is the manual checklist item).
+Expected: the screenshot shows 水 in the search field and one result row 水; the second command prints `com.abbabon.kanjioffline/.MainActivity`. To see the real menu entry, open any app with selectable text on the emulator (for example Chrome, or Settings search), long-press a word, open the three-dot overflow of the selection toolbar and look for "Tatsu": this is on the manual checklist at the end. Predictive back: confirm the manifest flag took effect with `adb shell dumpsys package com.abbabon.kanjioffline | grep -i -E "enableOnBackInvokedCallback|ON_BACK_INVOKED"` (the grep may print nothing on some builds; the visual check is the manual checklist item).
 
 - [ ] **Step 5: Commit**
 
@@ -2473,7 +2486,7 @@ git commit -m "Android: text-selection hand-off and predictive back opt-in"
 Three tests that run on an emulator: tap a row, hand-off, rotation. Run them on the phone AVD (`tatsu_phone`); the first test also copes with a two-pane device.
 
 **Files:**
-- Create: `android/app/src/androidTest/java/com/abbabon/tatsu/AppTest.kt`
+- Create: `android/app/src/androidTest/java/com/abbabon/kanjioffline/AppTest.kt`
 
 **Interfaces:**
 - Consumes: test tags `search`, `row:<k>`, `recent-header`, `detail-kanji`; `Recents`, `recentsStore`; `MainActivity`.
@@ -2482,7 +2495,7 @@ Three tests that run on an emulator: tap a row, hand-off, rotation. Run them on 
 - [ ] **Step 1: Write the tests**
 
 ```kotlin
-package com.abbabon.tatsu
+package com.abbabon.kanjioffline
 
 import android.content.Context
 import android.content.Intent
@@ -2600,7 +2613,7 @@ git commit -m "Android: instrumented tests for tap, text-selection hand-off and 
 
 ### Task 13: Themed adaptive icon
 
-The icon is drawn from `logo.svg`: dark gradient background, the red diagonal cut, the 断 glyph. The glyph is a text element in the SVG, so its outline is extracted from the same font the SVG names (Hiragino Mincho ProN, W6, installed on this Mac) and written as vector-drawable path data.
+The icon is drawn from `logo.svg`: dark gradient background, the red diagonal cut, the 断 glyph. The glyph is a text element in the SVG, so its outline is extracted from Noto Serif JP (SIL Open Font License 1.1, the font `logo.svg` already lists as a fallback), downloaded from an official source, and written as vector-drawable path data. Hiragino is not used.
 
 **Files:**
 - Create: `android/app/src/main/res/drawable/ic_launcher_background.xml`
@@ -2610,26 +2623,29 @@ The icon is drawn from `logo.svg`: dark gradient background, the red diagonal cu
 - Modify: `android/app/src/main/AndroidManifest.xml` (`android:icon`)
 
 **Interfaces:**
-- Consumes: `logo.svg` (geometry), the system font.
+- Consumes: `logo.svg` (geometry), Noto Serif JP downloaded in Step 1.
 - Produces: launcher icon with an Android 13+ monochrome layer. minSdk is 26, so adaptive icons exist on every supported device and no legacy PNG mipmaps are needed.
 
 - [ ] **Step 1: Generate the glyph path and write the drawables**
 
-Make a throwaway venv and script in a scratch directory (outside the repo), then run it from the repo root:
+Everything below happens in a scratch directory outside the repo (`SCRATCH=$(mktemp -d)`); the downloaded font is never committed. Download Noto Serif JP from an official source: the Google Fonts repository (`https://github.com/google/fonts/raw/main/ofl/notoserifjp/NotoSerifJP%5Bwght%5D.ttf`, a variable font; the same directory holds `OFL.txt`) or, if that URL has moved, the `notofonts` / `googlefonts` GitHub release or `fonts.google.com/noto/specimen/Noto+Serif+JP` download. Check that the file is a real font (`file` says TrueType, several MB) and read the licence text next to it to confirm SIL OFL 1.1. Then pin the weight with fontTools (the old logo used a W6 Mincho, so use wght 600) and extract the outline:
 
 ```bash
 SCRATCH=$(mktemp -d)
 python3 -m venv "$SCRATCH/venv" && "$SCRATCH/venv/bin/pip" install -q fonttools
+curl -fL -o "$SCRATCH/NotoSerifJP-VF.ttf" "https://github.com/google/fonts/raw/main/ofl/notoserifjp/NotoSerifJP%5Bwght%5D.ttf"
+curl -fL -o "$SCRATCH/OFL.txt" "https://github.com/google/fonts/raw/main/ofl/notoserifjp/OFL.txt"
+head -5 "$SCRATCH/OFL.txt"
+"$SCRATCH/venv/bin/fonttools" varLib.instancer "$SCRATCH/NotoSerifJP-VF.ttf" wght=600 -o "$SCRATCH/NotoSerifJP-600.ttf"
 cat > "$SCRATCH/icon.py" <<'PY'
 import sys
-from fontTools.ttLib import TTCollection
+from fontTools.ttLib import TTFont
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
 from fontTools.pens.boundsPen import BoundsPen
 
-out = sys.argv[1]
-font = next(f for f in TTCollection("/System/Library/Fonts/ヒラギノ明朝 ProN.ttc").fonts
-            if "W6" in f["name"].getDebugName(4))
+out, font_path = sys.argv[1], sys.argv[2]
+font = TTFont(font_path)
 gs, name = font.getGlyphSet(), font.getBestCmap()[ord("断")]
 upem = font["head"].unitsPerEm
 s = 290 / upem                       # font-size 290 in logo.svg (512 viewBox)
@@ -2668,8 +2684,10 @@ open(f"{out}/ic_launcher_background.xml", "w").write(
     '        </aapt:attr>\n    </path>\n</vector>\n')
 PY
 mkdir -p android/app/src/main/res/drawable android/app/src/main/res/mipmap-anydpi-v26
-"$SCRATCH/venv/bin/python" -I "$SCRATCH/icon.py" android/app/src/main/res/drawable
+"$SCRATCH/venv/bin/python" -I "$SCRATCH/icon.py" android/app/src/main/res/drawable "$SCRATCH/NotoSerifJP-600.ttf"
 ```
+
+Keep `$SCRATCH/NotoSerifJP-600.ttf` for Task 16 (if the shell is gone, repeat the download and instancer commands above).
 
 The monochrome layer is the cut and glyph in one flat colour (Android tints it); the 108dp canvas keeps everything inside the 66dp safe zone (the 512 art is scaled by 66/512 and centred).
 
@@ -2686,7 +2704,7 @@ The monochrome layer is the cut and glyph in one flat colour (Android tints it);
 
 In `AndroidManifest.xml` add `android:icon="@mipmap/ic_launcher"` and `android:roundIcon="@mipmap/ic_launcher"` to `<application>`.
 
-Provenance note for the report: the glyph outline comes from the same Hiragino font `logo.svg` and the existing iOS icon already use; no new font asset is shipped in the repo, only the extracted shape of one character.
+Provenance note for the report: the glyph outline comes from Noto Serif JP (SIL OFL 1.1, downloaded from the official Google Fonts repository into a scratch directory); no font file is shipped in the repo, only the extracted shape of one character, with the OFL attribution in the About sheet (`about_font_credit`, Task 8) and README. Report the exact source URL and the OFL copyright line from `OFL.txt`.
 
 - [ ] **Step 2: Build, install and look at the icon**
 
@@ -2698,7 +2716,7 @@ adb shell input swipe 540 1800 540 600 300; sleep 1       # open the app drawer
 adb exec-out screencap -p > "$SCRATCH/drawer.png"
 ```
 
-Look at the screenshot: the Tatsu icon shows a dark rounded tile with a red diagonal and a white 断, matching `logo.png` (open `logo.png` to compare). If the glyph is off-centre or clipped by the mask, adjust only the centring in the script and regenerate. The themed (monochrome) version is checked on the manual checklist.
+Look at the screenshot: the Tatsu icon shows a dark rounded tile with a red diagonal and a white 断 (Noto Serif JP, so the strokes differ slightly from the Hiragino original in `logo.png`; that is expected; open `logo.png` to compare). If the glyph is off-centre or clipped by the mask, adjust only the centring in the script and regenerate. The themed (monochrome) version is checked on the manual checklist.
 
 - [ ] **Step 3: Commit**
 
@@ -2713,7 +2731,7 @@ git commit -m "Android: adaptive and themed launcher icon drawn from logo.svg"
 
 **Files:**
 - Modify: `android/app/build.gradle.kts`
-- Create (outside the repo): `~/.android-keys/tatsu-upload.jks`
+- Create (outside the repo): `~/Keys/tatsu/upload.jks`
 - Modify (outside the repo): `~/.gradle/gradle.properties`
 
 **Interfaces:**
@@ -2723,14 +2741,14 @@ git commit -m "Android: adaptive and themed launcher icon drawn from logo.svg"
 - [ ] **Step 1: Make an upload keystore outside the repo**
 
 ```bash
-mkdir -p ~/.android-keys && chmod 700 ~/.android-keys
+mkdir -p ~/Keys/tatsu && chmod 700 ~/Keys ~/Keys/tatsu
 PW=$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)
-JAVA_HOME=$(/usr/libexec/java_home -v 17) "$JAVA_HOME/bin/keytool" -genkeypair -v -keystore ~/.android-keys/tatsu-upload.jks \
+JAVA_HOME=$(/usr/libexec/java_home -v 17) "$JAVA_HOME/bin/keytool" -genkeypair -v -keystore ~/Keys/tatsu/upload.jks \
   -alias upload -keyalg RSA -keysize 2048 -validity 10000 -storepass "$PW" -keypass "$PW" \
   -dname "CN=Tatsu upload key, O=Abbabon, C=IL"
 umask 077
 cat >> ~/.gradle/gradle.properties <<EOF
-TATSU_UPLOAD_STORE_FILE=$HOME/.android-keys/tatsu-upload.jks
+TATSU_UPLOAD_STORE_FILE=$HOME/Keys/tatsu/upload.jks
 TATSU_UPLOAD_STORE_PASSWORD=$PW
 TATSU_UPLOAD_KEY_ALIAS=upload
 TATSU_UPLOAD_KEY_PASSWORD=$PW
@@ -2779,15 +2797,15 @@ Expected: `BUILD SUCCESSFUL` (fix any lint errors, not warnings; common ones are
 
 ```bash
 # ENV; phone emulator booted
-adb uninstall com.abbabon.tatsu
+adb uninstall com.abbabon.kanjioffline
 adb install app/build/outputs/apk/release/app-release.apk
-adb shell am start -n com.abbabon.tatsu/.MainActivity; sleep 3
+adb shell am start -n com.abbabon.kanjioffline/.MainActivity; sleep 3
 adb shell input text water; sleep 2
 adb exec-out screencap -p > "$SCRATCH/release.png"
 adb logcat -d | grep -E "AndroidRuntime|FATAL" | head
 ```
 
-Expected: the screenshot shows 水 as the first result and logcat shows no `FATAL EXCEPTION`. If the app crashes decoding JSON, add the missing keep rule for `com.abbabon.tatsu.Kanji` to `proguard-rules.pro` (and note it in the commit message). The release APK is signed with the upload key, which is fine for this local smoke test.
+Expected: the screenshot shows 水 as the first result and logcat shows no `FATAL EXCEPTION`. If the app crashes decoding JSON, add the missing keep rule for `com.abbabon.kanjioffline.Kanji` to `proguard-rules.pro` (and note it in the commit message). The release APK is signed with the upload key, which is fine for this local smoke test.
 
 - [ ] **Step 5: Commit**
 
@@ -2847,9 +2865,9 @@ cd android && ./gradlew test
 JVM tests read `Tatsu/kanji.json` directly. UI tests (`./gradlew connectedDebugAndroidTest`) need an emulator. Gradle copies `Tatsu/kanji.json` into the APK at build time; there is only one copy in the repo.
 ```
 
-Also replace "Can't type a kanji on iPhone? Add the Chinese – Handwriting keyboard and draw it." with the same sentence plus "On Android, add Japanese handwriting to Gboard." And add to the search section: "Android: select text in any app and choose Tatsu from the selection menu to look it up."
+Also replace "Can't type a kanji on iPhone? Add the Chinese – Handwriting keyboard and draw it." with the same sentence plus "On Android, add Gboard's Japanese Handwriting layout." Add a short credits line to the README's data or licence section: "The Android icon glyph 断 is drawn from Noto Serif JP (SIL Open Font License 1.1, https://openfontlicense.org)." And add to the search section: "Android: select text in any app and choose Tatsu from the selection menu to look it up."
 
-- [ ] **Step 3: `PRIVACY.md`**: replace "It is stored on your device with SwiftData, is never synced or uploaded, and is visible only to the app." with "It is stored on your device (SwiftData on iPhone, iPad and Mac; Jetpack DataStore on Android), is never synced or uploaded, and is visible only to the app. On Android the app also opts out of Android cloud backup, so the list is not copied to your Google account." and replace the deletion paragraph with:
+- [ ] **Step 3: `PRIVACY.md`**: replace "It is stored on your device with SwiftData, is never synced or uploaded, and is visible only to the app." with "It is stored on your device (SwiftData on iPhone, iPad and Mac; Jetpack DataStore on Android), is never synced or uploaded, and is visible only to the app. On Android the recent list never leaves the device and is not included in Google backups (the app sets `allowBackup=\"false\"`)." and replace the deletion paragraph with:
 
 ```markdown
 To delete it, right-click (Mac) or long-press (iPhone, iPad and Android) an item and choose Remove from History, or use Clear in the Recent list. Deleting the app removes all of its data; on Android you can also clear it in Settings › Apps › Tatsu › Storage › Clear data.
@@ -2869,7 +2887,7 @@ Paste-ready values for the 0.1 release. Counts are `len()` of the text in each b
 - App name (21 / 30): `Tatsu – Offline Kanji`
 - Default language: English (United States)
 - App or game: App. Free or paid: Free.
-- Package name: `com.abbabon.tatsu` (cannot change after the first upload)
+- Package name: `com.abbabon.kanjioffline` (cannot change after the first upload)
 - Category: Education. Tags: pick "Education" and "Dictionaries" if offered.
 - Contact email: the account email. Website: `https://github.com/Abbabon/tatsu-kanji`
 - Privacy policy URL: `https://github.com/Abbabon/tatsu-kanji/blob/main/PRIVACY.md`
@@ -2921,7 +2939,7 @@ Paste-ready values for the 0.1 release. Counts are `len()` of the text in each b
 
 - App icon: `docs/playstore/icon-512.png` (512×512 PNG).
 - Feature graphic: `docs/playstore/feature-graphic.png` (1024×500 PNG, no transparency).
-- Screenshots: `docs/playstore/screenshots/`: `phone-*`, `tablet7-*`, `tablet10-*`, each in `light` and `dark`. Phone shots are 1080×2160 (Play rejects an aspect ratio beyond 2:1).
+- Screenshots: `docs/playstore/screenshots/`: `phone-*` and `tablet10-*`, light mode only (3 scenes each, 6 files). Phone shots are 1080×2160 (Play rejects an aspect ratio beyond 2:1).
 
 ## Release notes (en-US)
 
@@ -2929,7 +2947,7 @@ Paste-ready values for the 0.1 release. Counts are `len()` of the text in each b
 
 ## Testing before production
 
-A personal Play developer account created after 13 November 2023 must run a closed test with at least 12 testers opted in for 14 continuous days before it can apply for production access. Organisation accounts and older accounts are exempt; the Play Console dashboard shows which applies.
+Upload the first AAB to internal testing. If Play Console then shows the closed-testing requirement banner (it applies to personal accounts created after 13 November 2023; whether it applies here is not known yet), run a closed test with at least 12 testers opted in for 14 continuous days before applying for production access. If there is no banner, go straight to production.
 ```
 
 Verify the counts with Python before committing:
@@ -2957,14 +2975,14 @@ git commit -m "Android: docs, privacy wording and Play listing text"
 ### Task 16: Store assets (screenshots, feature graphic, icon)
 
 **Files:**
-- Create: `docs/playstore/screenshots/{phone,tablet7,tablet10}-{search,detail,recent}-{light,dark}.png`
+- Create: `docs/playstore/screenshots/{phone,tablet10}-{search,detail,recent}-light.png` (6 files)
 - Create: `docs/playstore/feature-graphic.png`, `docs/playstore/icon-512.png`
 
 **Interfaces:**
-- Consumes: the release-quality app; AVDs `tatsu_phone`, `tatsu_tablet7`, `tatsu_tablet10`.
+- Consumes: the release-quality app; AVDs `tatsu_phone`, `tatsu_tablet10`.
 - Produces: the image files Play Console asks for.
 
-Play limits: PNG or JPEG, each side 320-3840 px, the long side at most 2× the short side, at least 2 phone screenshots. Tablet screenshots are optional but recommended.
+Play limits: PNG or JPEG, each side 320-3840 px, the long side at most 2× the short side, at least 2 phone screenshots. 10-inch tablet screenshots are optional but recommended. Light mode only; no dark screenshots and no 7-inch set.
 
 - [ ] **Step 1: Icon and feature graphic**
 
@@ -2978,6 +2996,7 @@ sips -s format png -z 512 512 Tatsu/Assets.xcassets/AppIcon.appiconset/ios-1024.
 ```bash
 SCRATCH=$(mktemp -d)
 cat > "$SCRATCH/feature.py" <<'PY'
+import sys
 from PIL import Image, ImageDraw, ImageFont
 W, H = 1024, 500
 img = Image.new("RGB", (W, H))
@@ -2988,7 +3007,7 @@ for y in range(H):
         px[x, y] = (int(0x2E + (0x12 - 0x2E) * t), int(0x30 + (0x12 - 0x30) * t), int(0x47 + (0x18 - 0x47) * t))
 d = ImageDraw.Draw(img)
 d.line([(40, 470), (260, 250)], fill=(0xFF, 0x5C, 0x4D), width=14)
-mincho = ImageFont.truetype("/System/Library/Fonts/ヒラギノ明朝 ProN.ttc", 300, index=0)
+mincho = ImageFont.truetype(sys.argv[1], 300)   # Noto Serif JP instance from Task 13
 d.text((330, 235), "断", font=mincho, fill="white", anchor="mm")
 sans = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 84)
 small = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 38)
@@ -2996,15 +3015,15 @@ d.text((520, 190), "Tatsu", font=sans, fill="white", anchor="lm")
 d.text((522, 280), "Offline kanji dictionary", font=small, fill=(0xDD, 0xDD, 0xE6), anchor="lm")
 img.save("docs/playstore/feature-graphic.png")
 PY
-python3 -I "$SCRATCH/feature.py"
+python3 -I "$SCRATCH/feature.py" "$FONT"   # FONT = the NotoSerifJP-600.ttf from Task 13 (repeat its download and instancer commands if that scratch directory is gone)
 sips -g pixelWidth -g pixelHeight -g hasAlpha docs/playstore/feature-graphic.png docs/playstore/icon-512.png
 ```
 
-Expected: 1024×500 with `hasAlpha: no`, and 512×512. Look at both images; adjust positions in the script if the glyph or text collide. If the Hiragino `.ttc` index 0 is not a Mincho face, loop `index` 0..5 until the glyph renders (not a box).
+Expected: 1024×500 with `hasAlpha: no`, and 512×512. Look at both images; adjust positions in the script if the glyph or text collide. If the glyph renders as a box, the wrong font path was passed.
 
-- [ ] **Step 2: Capture phone screenshots (light, dark; three scenes)**
+- [ ] **Step 2: Capture phone and tablet screenshots (light mode only; three scenes)**
 
-For each AVD in turn (`tatsu_phone`, `tatsu_tablet7`, `tatsu_tablet10`): boot it headless as in Task 10, install `app-debug.apk` or the release APK, then:
+For each AVD in turn (`tatsu_phone`, `tatsu_tablet10`): boot it headless as in Task 10, install `app-debug.apk` or the release APK, then:
 
 ```bash
 # ENV; for the phone only: make the aspect ratio 2:1 for Play
@@ -3017,10 +3036,10 @@ adb shell am broadcast -a com.android.systemui.demo -e command battery -e level 
 adb shell am broadcast -a com.android.systemui.demo -e command network -e wifi show -e level 4
 adb shell am broadcast -a com.android.systemui.demo -e command notifications -e visible false
 
-for MODE in light dark; do
-  adb shell cmd uimode night $([ $MODE = dark ] && echo yes || echo no)
-  adb shell pm clear com.abbabon.tatsu
-  adb shell am start -n com.abbabon.tatsu/.MainActivity; sleep 3
+for MODE in light; do
+  adb shell cmd uimode night no
+  adb shell pm clear com.abbabon.kanjioffline
+  adb shell am start -n com.abbabon.kanjioffline/.MainActivity; sleep 3
   adb shell input text water; sleep 2
   adb exec-out screencap -p > docs/playstore/screenshots/DEVICE-search-$MODE.png      # scene 1: results
   # scene 2: open the first result (tap its row; get the coordinates from the screenshot) 
@@ -3030,7 +3049,7 @@ for MODE in light dark; do
 done
 ```
 
-Replace `DEVICE` with `phone`, `tablet7` or `tablet10`, `X Y` with a point inside the first result row (read it off the screenshot), and finish scene 3 by pressing back on the phone (`adb shell input keyevent KEYCODE_BACK`) then clearing the field (tap the x) so the Recent header shows; type `water`, open 水, then type `sun`, open 日 before scene 3 so Recent has two rows. For tablets the detail scene is the two-pane view with 水 highlighted. After each device: `adb shell wm size reset`, `adb shell am broadcast -a com.android.systemui.demo -e command exit`, `adb shell cmd uimode night auto`, then `adb emu kill`. Never use `osascript` or any Mac UI automation.
+Replace `DEVICE` with `phone` or `tablet10`, `X Y` with a point inside the first result row (read it off the screenshot), and finish scene 3 by pressing back on the phone (`adb shell input keyevent KEYCODE_BACK`) then clearing the field (tap the x) so the Recent header shows; type `water`, open 水, then type `sun`, open 日 before scene 3 so Recent has two rows. For tablets the detail scene is the two-pane view with 水 highlighted. After each device: `adb shell wm size reset`, `adb shell am broadcast -a com.android.systemui.demo -e command exit`, `adb shell cmd uimode night auto`, then `adb emu kill`. Never use `osascript` or any Mac UI automation.
 
 - [ ] **Step 3: Check every image**
 
@@ -3038,7 +3057,7 @@ Replace `DEVICE` with `phone`, `tablet7` or `tablet10`, `X Y` with a point insid
 for f in docs/playstore/screenshots/*.png; do sips -g pixelWidth -g pixelHeight "$f" | tr '\n' ' '; echo "$f"; done
 ```
 
-Expected: 18 files; each side between 320 and 3840; long side at most 2× the short side. Look at at least one light and one dark shot per device class. Reject any with a keyboard covering the content or the system clock showing a real time.
+Expected: 6 files; each side between 320 and 3840; long side at most 2× the short side. Look at one shot per device class. Reject any with a keyboard covering the content or the system clock showing a real time.
 
 - [ ] **Step 4: Commit**
 
@@ -3061,7 +3080,13 @@ git log --format='%an <%ae> | %cn <%ce>' android..HEAD 2>/dev/null | sort -u   #
 git log --format=%B main..HEAD | grep -i -E "co-authored-by" || echo "no trailers"
 ```
 
-- [ ] **Report to the user**: branch name `android`, the AAB path, the keystore location and the reminder to back it up, licence acceptance in Task 1, and anything in the manual checklist the executor could not do.
+- [ ] **Report to the user**: branch name `android`, the AAB path, the Noto Serif JP source and licence (Task 13), SDK licence acceptance in Task 1 (the executor accepted them on the user's behalf and says so), and anything in the manual checklist the executor could not do. End the report with a prominent final block:
+
+  **BACK UP THESE TWO FILES (the only copy of the upload key):**
+  1. `~/Keys/tatsu/upload.jks`
+  2. `~/.gradle/gradle.properties` (holds the keystore password)
+
+- [ ] **Merge and push** (after the user has seen the report, or as instructed): from `/Users/amit/repos/kanji-offline`, `git checkout main && git merge --no-ff android && git push origin main`; the branch `android` was already pushed after each task. No tag yet.
 
 ---
 
@@ -3069,7 +3094,7 @@ git log --format=%B main..HEAD | grep -i -E "co-authored-by" || echo "no trailer
 
 You do not need Android knowledge. All of this runs on the emulators; you can start one with a window by removing `-no-window` from the emulator command, or install Android Studio (optional) and use its Device Manager, which shows the same AVDs.
 
-Setup for a visible emulator (any of `tatsu_phone`, `tatsu_tablet7`, `tatsu_tablet10`, `tatsu_fold`):
+Setup for a visible emulator (any of `tatsu_phone`, `tatsu_tablet10`, `tatsu_fold`):
 
 ```bash
 export ANDROID_HOME=$HOME/Library/Android/sdk
@@ -3087,7 +3112,7 @@ Then open "Tatsu" from the app drawer (swipe up on the home screen).
 6. **Hardware keyboard (tablet).** The emulator accepts your Mac keyboard when it has focus. Type with no field focused: letters go into the search box. Up and Down arrows move the highlighted row and the detail pane follows. Enter picks. Ctrl+F focuses the search box. Confirm that merely moving with the arrows does not add rows to "Recent".
 7. **TalkBack.** Settings › Accessibility › TalkBack, turn on. Swipe right through the list: each row reads once as "kanji, meanings, readings" (not three separate stops). Open a kanji: each ON/KUN tile reads as one item. Turn TalkBack off.
 8. **Dark mode.** Settings › Display › Dark theme. Check the list, detail, About sheet and the "No matches." screen (search `zzzzqq`) are readable.
-9. **The Gboard handwriting hint.** On "No matches." read the hint and follow its path in Settings on the emulator; the menu names differ between Android versions and phone makers. If the wording is wrong, edit `handwriting_hint` in `android/app/src/main/res/values/strings.xml`.
+9. **The Gboard handwriting hint (needs a real device).** The hint's path was verified on 2026-10-06 against Gboard Help (support.google.com/gboard/answer/9108773). On a physical Android phone with Gboard: search `zzzzqq`, read the hint, follow it (Gboard settings → Languages → Japanese → Handwriting), then draw 水 and a few other kanji and confirm Japanese handwriting recognises them and the menu labels match the hint. If the wording differs, edit `handwriting_hint` in `android/app/src/main/res/values/strings.xml`.
 10. **Copy.** Copy a kanji from the detail screen and from a row's long-press menu. On Android 12 and older a "Copied" snackbar shows; on 13+ the system shows its own clipboard preview instead. Paste into the search field to confirm.
 11. **Long-press menu.** In Recent, long-press a row: Copy and "Remove from history" appear. In search results only Copy.
 
@@ -3097,12 +3122,13 @@ If any item fails, note which emulator and Android version, and what you saw.
 
 All done by hand in the browser; the upload is not automated.
 
-1. **Developer account.** Go to play.google.com/console and sign up (one-time US$25 fee). Choose "Personal" unless you have a registered organisation. Complete identity verification (government ID, address). Note whether your account falls under the closed-testing requirement (step 7): personal accounts created after 13 November 2023 do.
+1. **Developer account.** Go to play.google.com/console and sign up (one-time US$25 fee). Choose "Personal" unless you have a registered organisation. Complete identity verification (government ID, address). Note whether your account falls under the closed-testing requirement (step 7): personal accounts created after 13 November 2023 do, and you may not know which applies until Play Console shows (or does not show) the closed-testing banner.
 2. **Create the app.** Create app, name `Tatsu – Offline Kanji`, default language English (United States), App, Free, accept the declarations.
 3. **Set up the app (the "Dashboard" checklist).** Work through each task using `docs/playstore.md`: privacy policy URL, app access, ads, content rating questionnaire, target audience (13 and over), data safety (no data collected, none shared), government/financial/health declarations.
-4. **Store listing.** Main store listing: paste the short and full description from `docs/playstore.md`; upload `docs/playstore/icon-512.png`, `docs/playstore/feature-graphic.png`, the phone screenshots, and the 7-inch and 10-inch tablet screenshots from `docs/playstore/screenshots/`. Category Education.
-5. **Play App Signing and the first upload.** In Testing › Internal testing (or Closed testing) create a release. When asked, keep Play App Signing on (the default). Upload `android/app/build/outputs/bundle/release/app-release.aab` (build it with `cd android && ./gradlew bundleRelease`). It is signed with the upload key in `~/.android-keys/tatsu-upload.jks`; Google re-signs it with its own key. Add the release notes from `docs/playstore.md`.
+4. **Store listing.** Main store listing: paste the short and full description from `docs/playstore.md`; upload `docs/playstore/icon-512.png`, `docs/playstore/feature-graphic.png`, the phone and 10-inch tablet screenshots (light mode only) from `docs/playstore/screenshots/`. Category Education.
+5. **Play App Signing and the first upload.** Upload to Testing › Internal testing first: create a release. When asked, keep Play App Signing on (the default). Upload `android/app/build/outputs/bundle/release/app-release.aab` (build it with `cd android && ./gradlew bundleRelease`). It is signed with the upload key in `~/Keys/tatsu/upload.jks`; Google re-signs it with its own key. Add the release notes from `docs/playstore.md`.
 6. **Try it yourself.** Add your own Google account as an internal tester, open the opt-in link on an Android device or emulator with the Play Store, and install Tatsu from Play to check the real install.
-7. **Closed test (only if your account requires it).** Create a closed test track, add at least 12 testers (a Google Group or an email list; they need Google accounts and must opt in and stay opted in), release the same AAB there, and keep it running for 14 continuous days. Then in the Dashboard choose "Apply for production" and answer the short questionnaire about the test. If Play Console shows "Apply for production" right away, your account is exempt and you can skip this.
+7. **Closed test (only if Play Console shows the closed-testing requirement banner; unknown for this account until you look).** Create a closed test track, add at least 12 testers (a Google Group or an email list; they need Google accounts and must opt in and stay opted in), release the same AAB there, and keep it running for 14 continuous days. Then in the Dashboard choose "Apply for production" and answer the short questionnaire about the test. If Play Console shows "Apply for production" right away, your account is exempt and you can skip this.
 8. **Production.** Create a production release with the same AAB (or a newer one: versionCode must go up with every upload, edit `versionCode` in `android/app/build.gradle.kts`), send for review. First reviews can take several days. After approval choose a staged or full rollout.
-9. **Keep safe.** Back up `~/.android-keys/tatsu-upload.jks` and the passwords in `~/.gradle/gradle.properties`. Remember the package name `com.abbabon.tatsu` can never change after the first upload.
+9. **Keep safe.** Back up `~/Keys/tatsu/upload.jks` and the passwords in `~/.gradle/gradle.properties`. Remember the package name `com.abbabon.kanjioffline` can never change after the first upload.
+10. **Tag (user-gated).** Once you confirm the upload to Play went through, tell the executor; only then create and push the tag: `git tag android-0.1 && git push origin android-0.1` (from `main` after the merge; exact case, no `v`). Future tags: `android-X.Y`, `iOS-X.Y`.
