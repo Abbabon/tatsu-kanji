@@ -149,7 +149,13 @@ private fun SearchField(
     // and the spec needs autocorrect and capitalisation off with a Search IME action.
     // keep the caret at the end when the query changes from outside (restore, type-anywhere, Clear)
     var tfv by remember { mutableStateOf(TextFieldValue(query, TextRange(query.length))) }
-    if (tfv.text != query) tfv = TextFieldValue(query, TextRange(query.length))
+    // resync only when the VM query actually changed: it lags the IME value, and overwriting that with a stale
+    // query would drop the composition (Japanese input)
+    var last by remember { mutableStateOf(query) }
+    if (query != last) {
+        last = query
+        if (tfv.text != query) tfv = TextFieldValue(query, TextRange(query.length))
+    }
     TextField(
         value = tfv,
         onValueChange = { tfv = it; onQuery(it.text) },
