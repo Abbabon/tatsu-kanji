@@ -7,4 +7,6 @@ object TestData {
     val all: List<Kanji> by lazy {
         parseKanji(File(System.getProperty("kanji.json")!!).readText())
     }
+
+    val searcher: Searcher by lazy { Searcher(all) }
 }
