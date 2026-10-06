@@ -138,8 +138,8 @@ fun TatsuScreen(vm: TatsuViewModel) {
                     (e.key == Key.Enter || e.key == Key.NumPadEnter) && !otherFocused -> { enter(); true }
                     otherFocused && (e.key == Key.Enter || e.key == Key.NumPadEnter || e.key == Key.Spacebar) -> false
                     e.key == Key.Backspace ->
-                        if (!searchFocused && query.isNotEmpty()) {
-                            vm.setQuery(query.dropLastCodePoint())
+                        if (!searchFocused && vm.query.value.isNotEmpty()) {
+                            vm.setQuery(vm.query.value.dropLastCodePoint())
                             runCatching { searchFocus.requestFocus() }
                             true
                         } else false
@@ -147,7 +147,7 @@ fun TatsuScreen(vm: TatsuViewModel) {
                         // type anywhere: forward printable keys to the search field
                         val s = String(Character.toChars(e.utf16CodePoint))
                         if (isTypable(s)) {
-                            vm.setQuery(query + s)
+                            vm.setQuery(vm.query.value + s)
                             runCatching { searchFocus.requestFocus() }
                             true
                         } else false
