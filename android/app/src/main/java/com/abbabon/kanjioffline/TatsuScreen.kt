@@ -23,6 +23,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.utf16CodePoint
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.stringResource
@@ -48,6 +58,8 @@ fun TatsuScreen(vm: TatsuViewModel) {
     val clipboard = LocalClipboard.current
     val searchFocus = remember { FocusRequester() }
     var showAbout by remember { mutableStateOf(false) }
+    var searchFocused by remember { mutableStateOf(false) }
+    var rootFocused by remember { mutableStateOf(false) }   // any node under the scaffold has focus
     val twoPane = navigator.scaffoldDirective.maxHorizontalPartitions > 1
 
     val labels = Labels(
@@ -86,7 +98,41 @@ fun TatsuScreen(vm: TatsuViewModel) {
     LaunchedEffect(Unit) { runCatching { searchFocus.requestFocus() } }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .onFocusChanged { rootFocused = it.hasFocus }
+            .onPreviewKeyEvent { e ->
+                if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                // a focused button (Copy, Clear, back, a row) must still get its own Enter and Space
+                val otherFocused = rootFocused && !searchFocused
+                when {
+                    e.isCtrlPressed && e.key == Key.F -> {
+                        runCatching { searchFocus.requestFocus() }
+                        true
+                    }
+                    e.isCtrlPressed || e.isMetaPressed || e.isAltPressed -> false
+                    e.key == Key.DirectionDown -> { vm.step(1); true }
+                    e.key == Key.DirectionUp -> { vm.step(-1); true }
+                    (e.key == Key.Enter || e.key == Key.NumPadEnter) && !otherFocused -> { enter(); true }
+                    otherFocused && (e.key == Key.Enter || e.key == Key.NumPadEnter || e.key == Key.Spacebar) -> false
+                    e.key == Key.Backspace ->
+                        if (!searchFocused && query.isNotEmpty()) {
+                            vm.setQuery(query.dropLastCodePoint())
+                            runCatching { searchFocus.requestFocus() }
+                            true
+                        } else false
+                    !searchFocused && e.utf16CodePoint > 0 -> {
+                        // type anywhere: forward printable keys to the search field
+                        val s = String(Character.toChars(e.utf16CodePoint))
+                        if (isTypable(s)) {
+                            vm.setQuery(query + s)
+                            runCatching { searchFocus.requestFocus() }
+                            true
+                        } else false
+                    }
+                    else -> false
+                }
+            },
         snackbarHost = { SnackbarHost(snackbar) },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { padding ->
@@ -103,7 +149,7 @@ fun TatsuScreen(vm: TatsuViewModel) {
                         selected = selected,
                         highlight = twoPane,
                         searchFocus = searchFocus,
-                        onSearchFocus = {},
+                        onSearchFocus = { searchFocused = it },
                         onQuery = vm::setQuery,
                         onPick = ::pick,
                         onEnter = ::enter,
@@ -138,3 +184,7 @@ fun TatsuScreen(vm: TatsuViewModel) {
 
     if (showAbout) AboutSheet(onDismiss = { showAbout = false })
 }
+
+/** Removes the last code point (so a non-BMP kanji is not left as half a surrogate pair). */
+private fun String.dropLastCodePoint(): String =
+    if (isEmpty()) this else substring(0, offsetByCodePoints(length, -1))
