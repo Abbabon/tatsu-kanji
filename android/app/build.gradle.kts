@@ -4,10 +4,10 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-// kanji.json lives once, in Tatsu/. Copy it into a generated assets folder at build time.
+// kanji.json lives once, in data/ (shared with the Apple app). Copy it into a generated assets folder at build time.
 val kanjiAssetsDir = layout.buildDirectory.dir("generated/kanjiAssets")
 val copyKanjiData = tasks.register<Copy>("copyKanjiData") {
-    from(rootProject.file("../Tatsu/kanji.json"))
+    from(rootProject.file("../data/kanji.json"))
     into(kanjiAssetsDir)
 }
 
@@ -60,8 +60,8 @@ android {
 
 // JVM tests read the real data file from the repo
 tasks.withType<Test>().configureEach {
-    systemProperty("kanji.json", rootProject.file("../Tatsu/kanji.json").absolutePath)
-    inputs.file(rootProject.file("../Tatsu/kanji.json"))
+    systemProperty("kanji.json", rootProject.file("../data/kanji.json").absolutePath)
+    inputs.file(rootProject.file("../data/kanji.json"))
 }
 
 dependencies {
