@@ -8,7 +8,7 @@ Type English, hiragana, katakana, romaji, or paste a sentence of kanji. Get the 
 
 ## Install
 
-From the App Store (iPhone, iPad and Mac). To build it yourself, open `Tatsu.xcodeproj` in Xcode 26 or later and press Run.
+From the App Store (iPhone, iPad and Mac). To build it yourself, open `apple/Tatsu.xcodeproj` in Xcode 26 or later and press Run.
 
 Android: from Google Play (phones, tablets, foldables). To build it yourself, install JDK 17 and run `./gradlew assembleDebug` in `android/`.
 
@@ -34,20 +34,20 @@ Can't type a kanji on iPhone? Add the Chinese – Handwriting keyboard and draw 
 
 | Path | Role |
 |---|---|
-| `Tatsu/Search.swift` | Kana to romaji, normalisation, scoring. |
-| `Tatsu/Kanji.swift` | Data model and loader. |
-| `Tatsu/kanji.json` | Generated from KANJIDIC2, committed so the app builds offline. |
-| `Tatsu/ContentView.swift`, `KanjiDetail.swift`, `AboutView.swift` | SwiftUI interface, shared by all platforms. |
-| `Tatsu/Recent.swift` | Recent lookups (SwiftData). |
-| `TatsuTests/` | Search, formatting and recent lookup tests. |
+| `apple/Tatsu/Search.swift` | Kana to romaji, normalisation, scoring. |
+| `apple/Tatsu/Kanji.swift` | Data model and loader. |
+| `apple/Tatsu/ContentView.swift`, `KanjiDetail.swift`, `AboutView.swift` | SwiftUI interface, shared by all Apple platforms. |
+| `apple/Tatsu/Recent.swift` | Recent lookups (SwiftData). |
+| `apple/TatsuTests/` | Search, formatting and recent lookup tests. |
 | `android/` | Native Android app (Kotlin, Jetpack Compose). Same search and data; Material 3. |
+| `data/kanji.json` | Generated from KANJIDIC2, committed so both apps build offline. |
+| `data/build_data.py` | Regenerates `kanji.json` from the latest KANJIDIC2. |
 | `docs/playstore.md` | Play Console listing text. |
-| `build_data.py` | Regenerates `kanji.json` from the latest KANJIDIC2. |
 
 ## Test
 
 ```sh
-xcodebuild -project Tatsu.xcodeproj -scheme Tatsu -destination 'platform=iOS Simulator,name=iPhone 16 Pro' test
+xcodebuild -project apple/Tatsu.xcodeproj -scheme Tatsu -destination 'platform=iOS Simulator,name=iPhone 16 Pro' test
 ```
 
 Tests run on the iOS Simulator in the background; use any simulator from `xcrun simctl list devices available`. If the simulator can't be found by name, use `id=<UDID>` from that list.
@@ -59,7 +59,7 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 17 2>/dev/null || echo /opt/homebre
 cd android && ./gradlew test
 ```
 
-JVM tests read `Tatsu/kanji.json` directly. UI tests (`./gradlew connectedDebugAndroidTest`) need an emulator. Gradle copies `Tatsu/kanji.json` into the APK at build time; there is only one copy in the repo.
+JVM tests read `data/kanji.json` directly. UI tests (`./gradlew connectedDebugAndroidTest`) need an emulator. Gradle copies `data/kanji.json` into the APK at build time; there is only one copy in the repo.
 
 ## Releases
 
@@ -68,7 +68,7 @@ Releases are tagged per platform as `iOS-X.Y` and `android-X.Y`, for example `an
 ## Update the dictionary
 
 ```sh
-python3 build_data.py
+python3 data/build_data.py
 ```
 
 Then run the tests.

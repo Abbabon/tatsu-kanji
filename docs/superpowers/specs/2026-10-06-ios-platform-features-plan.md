@@ -6,18 +6,22 @@ Status: draft, to be grilled. Not approved for implementation.
 
 Tatsu 0.1 covers search, recents, copy, keyboard control and dark mode. Almost all of its
 contact with the rest of iOS is missing: no widgets, no Siri/Shortcuts, no Spotlight, no deep
-links, no share sheet, no speech. A separate agent is adding the features Android users expect;
-this plan covers what iOS users expect.
+links, no share sheet, no speech. The Android app has since shipped (see below); this plan covers what iOS users expect.
 
 ## Current state (2026-10-06)
 
-- One multiplatform app target (iOS 17 / macOS 14), plus `TatsuTests` and `TatsuUITests`.
+- One multiplatform app target (iOS 17 / macOS 14), plus `TatsuTests` and `TatsuUITests`, all under `apple/`.
   No extensions, no entitlements, no URL types.
-- Recents: SwiftData `Recent`, last 100, device-only by design (`Recent.swift`).
-- Glyphs use fixed sizes (`ContentView.swift:140` 40pt, `KanjiDetail.swift:12` 96pt).
+- Recents: SwiftData `Recent`, last 100, device-only by design (`apple/Tatsu/Recent.swift`).
+- Glyphs use fixed sizes (`apple/Tatsu/ContentView.swift:140` 40pt, `apple/Tatsu/KanjiDetail.swift:12` 96pt).
 - No accessibility modifiers. One iOS app icon with no dark/tinted variants.
 - The 0.1 spec's roadmap: 1.1 action extension (search moves to a shared Swift package),
   1.2 camera Live Text, then downloadable packs. Non-goals kept: syncing, translations.
+- The repo is split into `apple/` (this app), `android/` and `data/` (`kanji.json`, 10,348
+  kanji, and `build_data.py`), shared by both apps.
+- The Android app (`android/`) shipped 0.1 with a text-selection "Tatsu" menu (Android's
+  analogue of the 1.1 action extension), a themed icon, hardware-keyboard support and
+  tablet/foldable layouts. It has no favorites, read-aloud, widgets or deep links.
 
 ## Order of work
 
@@ -63,7 +67,7 @@ Speech and share are checked by hand.
 - Choice of kanji is a deterministic function of the date (same kanji all day, on every
   device), drawn from a filtered pool (e.g. JLPT N5–N3 or grade 1–6).
 - Needs the kanji data and lookup code in the extension: move search and data into a
-  shared Swift package, as the 1.1 action-extension plan already intends.
+  shared Swift package under `apple/` that reads `data/kanji.json`, as the 1.1 action-extension plan already intends.
 - Tap opens `tatsu://kanji/<char>`.
 
 ## 4. Icons
@@ -76,11 +80,12 @@ iCloud sync, Apple Watch, visionOS, StoreKit review prompt, TipKit, translations
 
 ## Open questions
 
-1. Should favorites and read-aloud match the Android version's behaviour exactly?
+1. Android has neither favorites nor read-aloud. Do they ship on iOS first, with parity
+   meaning we add them to Android later?
 2. Speech: which reading forms are spoken (kana only, or names too)? Fallback when the
    Japanese voice isn't installed?
 3. Widget pool and rotation: which kanji, and does it skip ones you've already seen?
 4. Does the shared package move happen as part of piece 3, or as its own step first
    (so the 1.1 action extension and the widget share it)?
-5. Spotlight indexing cost: index all ~13k kanji, or only graded/JLPT ones?
+5. Spotlight indexing cost: index all 10,348 kanji, or only graded/JLPT ones?
 6. Mac: which of these ship on macOS too (widgets and intents do; speech and share do)?
