@@ -165,7 +165,7 @@ private fun SearchField(
         value = tfv,
         onValueChange = { tfv = it; onQuery(it.text) },
         singleLine = true,
-        placeholder = { Text(stringResource(R.string.search_hint)) },
+        placeholder = { Text(stringResource(R.string.search_hint), maxLines = 1, overflow = TextOverflow.Ellipsis) },
         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
         trailingIcon = {
             if (query.isNotEmpty()) {
