@@ -98,7 +98,7 @@ https://github.com/Abbabon/tatsu-kanji/blob/main/PRIVACY.md
 
 ## App privacy
 
-Answer "Data Not Collected". This matches `Tatsu/PrivacyInfo.xcprivacy`, which declares no tracking, no collected data types and no accessed required-reason APIs.
+Answer "Data Not Collected". This matches `apple/Tatsu/PrivacyInfo.xcprivacy`, which declares no tracking, no collected data types and no accessed required-reason APIs.
 
 ## App Review information
 

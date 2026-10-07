@@ -53,7 +53,7 @@ commit to a different person or tool.
 Always run the tests on the iOS Simulator, never the macOS destination (it launches the app and takes over the machine):
 
 ```bash
-xcodebuild -project Tatsu.xcodeproj -scheme Tatsu -destination 'platform=iOS Simulator,name=iPhone 16 Pro' CODE_SIGNING_ALLOWED=NO test
+xcodebuild -project apple/Tatsu.xcodeproj -scheme Tatsu -destination 'platform=iOS Simulator,name=iPhone 16 Pro' CODE_SIGNING_ALLOWED=NO test
 ```
 
 If the simulator can't be found by name, use `id=<UDID>` from `xcrun simctl list devices available`.

@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Download KANJIDIC2 and emit Tatsu/kanji.json for the app. Run once; output is committed."""
+"""Download KANJIDIC2 and emit data/kanji.json, shared by the iOS/macOS and Android apps.
+Run once from any directory (stdlib only); output is committed. The XML is cached next to this script."""
 import gzip, json, urllib.request, xml.etree.ElementTree as ET, os, unicodedata
 
 URL = "http://www.edrdg.org/kanjidic/kanjidic2.xml.gz"
-GZ = "kanjidic2.xml.gz"
+HERE = os.path.dirname(os.path.abspath(__file__))
+GZ = os.path.join(HERE, "kanjidic2.xml.gz")
+OUT = os.path.join(HERE, "kanji.json")
 
 if not os.path.exists(GZ):
     print("downloading", URL)
@@ -38,6 +41,6 @@ for ch in root.iter("character"):
 
 # common kanji first: has freq rank (lower = more common), then by grade
 out.sort(key=lambda e: (e["f"] or 9999, e["g"] or 99, e["s"]))
-with open("Tatsu/kanji.json", "w", encoding="utf-8") as f:
+with open(OUT, "w", encoding="utf-8") as f:
     json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
-print(len(out), "kanji written to Tatsu/kanji.json")
+print(len(out), "kanji written to", OUT)
