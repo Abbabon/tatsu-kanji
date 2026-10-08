@@ -73,6 +73,10 @@ python3 data/build_data.py
 
 Then run the tests.
 
+## Built with AI
+
+Tatsu is written with [Claude Code](https://claude.com/claude-code), Anthropic's AI coding assistant. I direct the work, review the changes and test the apps; Claude writes most of the code, tests and docs. The kanji data is not AI-generated: every reading, meaning and level comes from KANJIDIC2.
+
 ## Data and license
 
 Kanji data is [KANJIDIC2](https://www.edrdg.org/wiki/index.php/KANJIDIC_Project) by the Electronic Dictionary Research and Development Group, used under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). App code is MIT. The Android icon glyph 断 is drawn from Noto Serif JP (SIL Open Font License 1.1, https://openfontlicense.org).
