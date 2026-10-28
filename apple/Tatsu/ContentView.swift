@@ -38,6 +38,9 @@ struct ContentView: View {
                 let hits = await Task.detached { s.search(q) }.value
                 if !Task.isCancelled { found = (q, hits) }
             }
+            #if os(macOS)
+            .navigationSplitViewColumnWidth(min: 220, ideal: 280, max: 420)
+            #endif
             .navigationTitle("Tatsu")
             .searchable(text: $query, isPresented: $searching, prompt: "English, kana, romaji or kanji")
             .onSubmit(of: .search) { enter() }
