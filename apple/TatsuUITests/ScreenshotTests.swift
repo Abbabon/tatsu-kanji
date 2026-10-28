@@ -1,3 +1,4 @@
+#if !os(macOS)
 import XCTest
 
 /// App Store screenshot driver. Skipped unless TATSU_SCREENSHOTS=1 (pass as TEST_RUNNER_TATSU_SCREENSHOTS=1).
@@ -115,3 +116,4 @@ final class ScreenshotTests: XCTestCase {
         try shot(3, "recent")
     }
 }
+#endif

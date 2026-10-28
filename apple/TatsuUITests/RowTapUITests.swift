@@ -1,3 +1,4 @@
+#if !os(macOS)
 import XCTest
 
 /// Tapping anywhere on a sidebar row must open its detail (pushes on iPhone) and record it.
@@ -37,3 +38,4 @@ final class RowTapUITests: XCTestCase {
         XCTAssertEqual(app.cells.count, 2)  // header + the one recorded row
     }
 }
+#endif
